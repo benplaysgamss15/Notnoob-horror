@@ -61,7 +61,6 @@
     <canvas id="glcanvas"></canvas>
     <canvas id="ui-canvas"></canvas>
 
-    <!-- Three.js r128 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
@@ -78,7 +77,7 @@
 
         const STATE = {
             isRunning: false, isMobile: false,
-            lives: 3, stage: 0, // 0:NeedFuse, 1:NeedPower, 2:NeedKey, 3:Escape
+            lives: 3, stage: 0,
             inventory: null,
             player: {
                 velocity: new THREE.Vector3(),
@@ -98,7 +97,7 @@
         };
 
         // ==========================================
-        // AUDIO ENGINE (Web Audio API)
+        // AUDIO ENGINE
         // ==========================================
         class AudioEngine {
             constructor() {
@@ -107,10 +106,8 @@
                 this.masterGain.connect(this.ctx.destination);
                 
                 this.ambientOsc = null;
-                this.heartbeatOsc = null;
                 this.heartbeatGain = null;
                 this.nextHeartbeat = 0;
-                
                 this.createNoiseBuffer();
             }
 
@@ -118,9 +115,7 @@
                 const bufferSize = this.ctx.sampleRate * 2;
                 this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
                 const output = this.noiseBuffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    output[i] = Math.random() * 2 - 1;
-                }
+                for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
             }
 
             playFootstep(volume = 0.1) {
@@ -136,12 +131,8 @@
                 gain.gain.setValueAtTime(volume, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
 
-                src.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.masterGain);
-                
-                src.start();
-                src.stop(this.ctx.currentTime + 0.2);
+                src.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+                src.start(); src.stop(this.ctx.currentTime + 0.2);
             }
 
             startAmbient() {
@@ -153,8 +144,7 @@
                 const gain = this.ctx.createGain();
                 gain.gain.value = 0.05;
                 
-                this.ambientOsc.connect(gain);
-                gain.connect(this.masterGain);
+                this.ambientOsc.connect(gain); gain.connect(this.masterGain);
                 this.ambientOsc.start();
             }
 
@@ -168,10 +158,8 @@
                 gain.gain.setValueAtTime(1, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.5);
                 
-                osc.connect(gain);
-                gain.connect(this.masterGain);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 1.5);
+                osc.connect(gain); gain.connect(this.masterGain);
+                osc.start(); osc.stop(this.ctx.currentTime + 1.5);
             }
 
             playInteract(type) {
@@ -184,10 +172,8 @@
                 gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
                 gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5);
                 
-                osc.connect(gain);
-                gain.connect(this.masterGain);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.5);
+                osc.connect(gain); gain.connect(this.masterGain);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.5);
             }
 
             updateHeartbeat(dt, threatLevel) {
@@ -196,9 +182,8 @@
                     this.heartbeatGain.connect(this.masterGain);
                     this.heartbeatGain.gain.value = 0;
                 }
-                
                 if(threatLevel > 0) {
-                    const rate = 1.0 - (threatLevel * 0.6); // Faster when closer
+                    const rate = 1.0 - (threatLevel * 0.6);
                     if(this.ctx.currentTime > this.nextHeartbeat) {
                         const osc = this.ctx.createOscillator();
                         osc.type = "sine";
@@ -209,10 +194,8 @@
                         env.gain.setValueAtTime(threatLevel * 0.5, this.ctx.currentTime);
                         env.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
                         
-                        osc.connect(env);
-                        env.connect(this.heartbeatGain);
-                        osc.start();
-                        osc.stop(this.ctx.currentTime + 0.2);
+                        osc.connect(env); env.connect(this.heartbeatGain);
+                        osc.start(); osc.stop(this.ctx.currentTime + 0.2);
                         
                         this.nextHeartbeat = this.ctx.currentTime + rate;
                     }
@@ -232,28 +215,17 @@
             if(type === 'wood') {
                 ctx.fillStyle = '#3a2311'; ctx.fillRect(0,0,256,256);
                 ctx.fillStyle = '#2a1508';
-                for(let i=0; i<100; i++) {
-                    ctx.fillRect(Math.random()*256, 0, Math.random()*3+1, 256);
-                }
+                for(let i=0; i<100; i++) ctx.fillRect(Math.random()*256, 0, Math.random()*3+1, 256);
             } else if(type === 'wall') {
                 ctx.fillStyle = '#4a4a4a'; ctx.fillRect(0,0,256,256);
                 ctx.fillStyle = '#333';
-                for(let i=0; i<500; i++) {
-                    ctx.fillRect(Math.random()*256, Math.random()*256, 2, 2);
-                }
-                // Wallpaper stripes
+                for(let i=0; i<500; i++) ctx.fillRect(Math.random()*256, Math.random()*256, 2, 2);
                 ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                for(let i=0; i<256; i+=32) {
-                    ctx.fillRect(i, 0, 16, 256);
-                }
+                for(let i=0; i<256; i+=32) ctx.fillRect(i, 0, 16, 256);
             } else if(type === 'floor') {
                 ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0,0,256,256);
                 ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-                for(let y=0; y<256; y+=64) {
-                    for(let x=0; x<256; x+=64) {
-                        ctx.strokeRect(x,y,64,64);
-                    }
-                }
+                for(let y=0; y<256; y+=64) for(let x=0; x<256; x+=64) ctx.strokeRect(x,y,64,64);
             } else if(type === 'entity') {
                 ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,256,256);
                 ctx.fillStyle = '#dddddd';
@@ -263,13 +235,11 @@
             } else if(type === 'door') {
                 ctx.fillStyle = '#2b1b0c'; ctx.fillRect(0,0,256,256);
                 ctx.strokeStyle = '#1a0f05'; ctx.lineWidth = 4;
-                ctx.strokeRect(20, 20, 216, 100);
-                ctx.strokeRect(20, 136, 216, 100);
+                ctx.strokeRect(20, 20, 216, 100); ctx.strokeRect(20, 136, 216, 100);
             }
 
             const tex = new THREE.CanvasTexture(canvas);
-            tex.wrapS = THREE.RepeatWrapping;
-            tex.wrapT = THREE.RepeatWrapping;
+            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
             return tex;
         }
 
@@ -282,10 +252,9 @@
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
         const pitchObj = new THREE.Object3D();
         const yawObj = new THREE.Object3D();
-        yawObj.position.set(0, CONFIG.playerHeight, 0);
-        yawObj.add(pitchObj);
-        pitchObj.add(camera);
-        scene.add(yawObj);
+        // Set specific spawn inside Foyer
+        yawObj.position.set(0, CONFIG.playerHeight, 14);
+        yawObj.add(pitchObj); pitchObj.add(camera); scene.add(yawObj);
 
         const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('glcanvas'), antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -293,25 +262,19 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
-        // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.03);
         scene.add(ambientLight);
 
         const flashlight = new THREE.SpotLight(0xffffff, 1.5, 20, Math.PI/6, 0.5, 1);
-        flashlight.position.set(0, 0, 0);
-        flashlight.target.position.set(0, 0, -1);
-        flashlight.castShadow = true;
-        camera.add(flashlight);
-        camera.add(flashlight.target);
+        flashlight.position.set(0, 0, 0); flashlight.target.position.set(0, 0, -1);
+        flashlight.castShadow = true; camera.add(flashlight); camera.add(flashlight.target);
 
-        // Materials
         const mats = {
             wood: new THREE.MeshStandardMaterial({ map: createTexture('wood'), roughness: 0.9 }),
             wall: new THREE.MeshStandardMaterial({ map: createTexture('wall'), roughness: 1.0 }),
             floor: new THREE.MeshStandardMaterial({ map: createTexture('floor'), roughness: 0.7 }),
             door: new THREE.MeshStandardMaterial({ map: createTexture('door'), roughness: 0.8 }),
-            entity: new THREE.MeshStandardMaterial({ map: createTexture('entity'), roughness: 1.0, emissive: 0x111111 }),
-            black: new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 1.0 })
+            entity: new THREE.MeshStandardMaterial({ map: createTexture('entity'), roughness: 1.0, emissive: 0x111111 })
         };
 
         const colliders = [];
@@ -319,11 +282,9 @@
         const flickers = [];
 
         function addBox(x, y, z, w, h, d, mat, isCollider=true) {
-            const geo = new THREE.BoxGeometry(w, h, d);
-            const mesh = new THREE.Mesh(geo, mat);
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
             mesh.position.set(x, y, z);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
+            mesh.castShadow = true; mesh.receiveShadow = true;
             scene.add(mesh);
             if(isCollider) {
                 mesh.geometry.computeBoundingBox();
@@ -332,42 +293,72 @@
             return mesh;
         }
 
-        function createRoom(rx, rz, w, d, name) {
-            // Floor
-            const floor = addBox(rx, 0, rz, w, 0.5, d, mats.floor);
-            floor.receiveShadow = true; floor.castShadow = false;
-            // Ceiling
-            addBox(rx, 3.5, rz, w, 0.5, d, mats.floor);
-            // Walls (Simplistic generation for single file)
-            addBox(rx, 1.75, rz - d/2, w, 3.5, 0.5, mats.wall); // N
-            addBox(rx, 1.75, rz + d/2, w, 3.5, 0.5, mats.wall); // S
-            addBox(rx - w/2, 1.75, rz, 0.5, 3.5, d, mats.wall); // W
-            addBox(rx + w/2, 1.75, rz, 0.5, 3.5, d, mats.wall); // E
+        // Perfect coordinate mapped walls (No overlapping spawns)
+        function wall(x, y, z, w, h, d) { addBox(x, y, z, w, h, d, mats.wall); }
+        function floorCeil(x, z, w, d) {
+            addBox(x, 0, z, w, 0.5, d, mats.floor); addBox(x, 3.5, z, w, 0.5, d, mats.floor);
         }
 
-        function createDoor(x, y, z, rotY, roomA, roomB) {
-            // Cutout hole in wall handled by overlapping (lazy but works for low poly horror)
-            // Door pivot
+        floorCeil(0, 0, 4, 20);    // Hallway
+        floorCeil(0, 14, 8, 8);    // Foyer
+        floorCeil(-6, 0, 8, 8);    // Living
+        floorCeil(6, 0, 8, 8);     // Bedroom
+        floorCeil(0, -14, 10, 8);  // Kitchen
+
+        // Hallway Walls
+        wall(-2, 1.75, -5.5, 0.5, 3.5, 9); wall(-2, 1.75, 5.5, 0.5, 3.5, 9); // West (gap at z=0)
+        wall(2, 1.75, -5.5, 0.5, 3.5, 9);  wall(2, 1.75, 5.5, 0.5, 3.5, 9);  // East (gap at z=0)
+        
+        // Foyer Walls
+        wall(-2.5, 1.75, 10, 3, 3.5, 0.5); wall(2.5, 1.75, 10, 3, 3.5, 0.5); // North (gap at x=0)
+        wall(-4, 1.75, 14, 0.5, 3.5, 8); // West
+        wall(4, 1.75, 14, 0.5, 3.5, 8);  // East
+        wall(-2.5, 1.75, 18, 3, 3.5, 0.5); wall(2.5, 1.75, 18, 3, 3.5, 0.5); // South (gap at x=0)
+
+        // Living Room
+        wall(-6, 1.75, -4, 8, 3.5, 0.5); // North
+        wall(-6, 1.75, 4, 8, 3.5, 0.5);  // South
+        wall(-10, 1.75, 0, 0.5, 3.5, 8); // West
+
+        // Bedroom
+        wall(6, 1.75, -4, 8, 3.5, 0.5); // North
+        wall(6, 1.75, 4, 8, 3.5, 0.5);  // South
+        wall(10, 1.75, 0, 0.5, 3.5, 8); // East
+
+        // Kitchen
+        wall(-3, 1.75, -10, 4, 3.5, 0.5); wall(3, 1.75, -10, 4, 3.5, 0.5); // South
+        wall(-5, 1.75, -14, 0.5, 3.5, 8); // West
+        wall(5, 1.75, -14, 0.5, 3.5, 8);  // East
+        wall(-3, 1.75, -18, 4, 3.5, 0.5); wall(3, 1.75, -18, 4, 3.5, 0.5); // North
+
+        // Basement Stairs
+        wall(-2, -1.5, -20.5, 0.5, 7, 5); // West
+        wall(2, -1.5, -20.5, 0.5, 7, 5);  // East
+        const stairs = addBox(0, -2.5, -20.5, 4, 0.5, 7, mats.wood); stairs.rotation.x = 0.6; 
+
+        // Basement
+        addBox(0, -5, -28, 10, 0.5, 10, mats.floor); // Floor
+        addBox(0, -1.5, -28, 10, 0.5, 10, mats.floor); // Ceiling
+        wall(0, -3.25, -33, 10, 3.5, 0.5); // North
+        wall(-3, -3.25, -23, 4, 3.5, 0.5); wall(3, -3.25, -23, 4, 3.5, 0.5); // South
+        wall(-5, -3.25, -28, 0.5, 3.5, 10); // West
+        wall(5, -3.25, -28, 0.5, 3.5, 10);  // East
+
+        // Door System
+        function createDoor(pivotX, pivotY, pivotZ, rotY) {
             const pivot = new THREE.Group();
-            pivot.position.set(x, y, z);
+            pivot.position.set(pivotX, pivotY, pivotZ);
             pivot.rotation.y = rotY;
             scene.add(pivot);
 
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 0.2), mats.door);
-            mesh.position.set(1, 1.5, 0); // Offset so it pivots on edge
+            mesh.position.set(1, 1.5, 0); 
             mesh.castShadow = true; mesh.receiveShadow = true;
             pivot.add(mesh);
-            
-            mesh.geometry.computeBoundingBox();
-            colliders.push(mesh); // Add actual mesh to colliders
+            mesh.geometry.computeBoundingBox(); colliders.push(mesh);
 
             const interactObj = {
-                type: 'door',
-                mesh: mesh,
-                pivot: pivot,
-                open: false,
-                targetRot: rotY,
-                baseRot: rotY,
+                type: 'door', mesh: mesh, pivot: pivot, open: false, targetRot: rotY, baseRot: rotY,
                 interact: function() {
                     this.open = !this.open;
                     this.targetRot = this.baseRot + (this.open ? Math.PI/2 : 0);
@@ -375,81 +366,49 @@
                 },
                 update: function() {
                     this.pivot.rotation.y += (this.targetRot - this.pivot.rotation.y) * 0.1;
-                    // Update collider transform manually for simple raycast system
                     this.mesh.updateMatrixWorld();
                 }
             };
             interactables.push(interactObj);
-            return interactObj;
         }
 
-        // Build House
-        // Hallway (Center)
-        createRoom(0, 0, 4, 20, "Hallway");
-        // Foyer (South)
-        createRoom(0, 10, 8, 8, "Foyer");
-        // Living Room (West)
-        createRoom(-8, 0, 10, 8, "Living");
-        // Bedroom (East)
-        createRoom(8, 0, 10, 8, "Bedroom");
-        // Kitchen (North)
-        createRoom(0, -10, 10, 8, "Kitchen");
-        // Basement (Deep Down North)
-        createRoom(0, -25, 10, 10, "Basement"); // y=-5 handled below
-        const basementFloor = addBox(0, -5, -25, 10, 0.5, 10, mats.floor);
-        addBox(0, -1.5, -25, 10, 0.5, 10, mats.floor); // Ceiling
-        addBox(0, -3.25, -30, 10, 3.5, 0.5, mats.wall); // N
-        addBox(0, -3.25, -20, 10, 3.5, 0.5, mats.wall); // S
-        addBox(-5, -3.25, -25, 0.5, 3.5, 10, mats.wall); // W
-        addBox(5, -3.25, -25, 0.5, 3.5, 10, mats.wall); // E
-        // Stairs
-        const stairs = addBox(0, -2.5, -15, 2, 0.5, 10, mats.wood);
-        stairs.rotation.x = Math.PI / 4;
-
-        // Doors
-        createDoor(0, 0, 6, 0, "Hallway", "Foyer");
-        createDoor(-2, 0, 0, Math.PI/2, "Hallway", "Living");
-        createDoor(2, 0, 0, Math.PI/2, "Hallway", "Bedroom");
-        createDoor(0, 0, -6, 0, "Hallway", "Kitchen");
-        createDoor(0, 0, -14, 0, "Kitchen", "BasementStairs");
+        createDoor(-1, 0, 10, 0); // Foyer
+        createDoor(-1, 0, -10, 0); // Kitchen
+        createDoor(-2, 0, 1, Math.PI/2); // Living
+        createDoor(2, 0, -1, -Math.PI/2); // Bedroom
+        createDoor(-1, 0, -18, 0); // Basement
 
         // Props & Puzzles
-        // Wardrobe & Box (Bedroom)
-        const wardrobe = addBox(11, 1.5, 0, 2, 3, 2, mats.wood);
-        const fuseBox = addBox(11, 1.5, 0.5, 0.5, 0.5, 0.5, new THREE.MeshStandardMaterial({color: 0x555555}));
+        const wardrobe = addBox(9, 1.5, 0, 2, 3, 2, mats.wood);
+        const fuseBox = addBox(9, 1.5, 1.5, 0.5, 0.5, 0.5, new THREE.MeshStandardMaterial({color: 0x555555}));
         interactables.push({
             type: 'fuse', mesh: fuseBox, prompt: "Take Fuse",
             interact: function() {
                 if(STATE.stage === 0) {
-                    STATE.inventory = 'FUSE';
-                    STATE.stage = 1;
+                    STATE.inventory = 'FUSE'; STATE.stage = 1;
                     scene.remove(fuseBox);
                     if(audio) audio.playInteract('item');
                 }
             }
         });
 
-        // Basement Main Fusebox
-        const mainFusebox = addBox(0, -3, -29.5, 1, 1.5, 0.5, new THREE.MeshStandardMaterial({color: 0x222222}));
+        const mainFusebox = addBox(0, -3, -32.5, 1, 1.5, 0.5, new THREE.MeshStandardMaterial({color: 0x222222}));
         interactables.push({
             type: 'fusebox', mesh: mainFusebox, prompt: "Insert Fuse",
             interact: function() {
                 if(STATE.stage === 1 && STATE.inventory === 'FUSE') {
-                    STATE.inventory = null;
-                    STATE.stage = 2;
+                    STATE.inventory = null; STATE.stage = 2;
                     triggerPowerEvent();
                 }
             }
         });
 
-        // Kitchen Drawer
-        const counter = addBox(-3, 1, -13, 3, 1, 1, mats.wood);
+        const counter = addBox(-3, 1, -17.5, 3, 1, 1, mats.wood);
         interactables.push({
             type: 'drawer', mesh: counter, prompt: "Open Drawer",
             interact: function() {
                 if(STATE.stage === 2) {
-                    STATE.inventory = 'KEY';
-                    STATE.stage = 3;
+                    STATE.inventory = 'KEY'; STATE.stage = 3;
                     if(audio) audio.playInteract('item');
                     this.prompt = "Empty";
                 } else if(STATE.stage < 2) {
@@ -459,45 +418,33 @@
             }
         });
 
-        // Front Door (Escape)
-        const frontDoorMesh = addBox(0, 1.5, 13.5, 2, 3, 0.5, mats.door);
+        const frontDoorMesh = addBox(0, 1.5, 18, 2, 3, 0.5, mats.door);
         interactables.push({
             type: 'frontdoor', mesh: frontDoorMesh, prompt: "Unlock Door",
             interact: function() {
-                if(STATE.stage === 3 && STATE.inventory === 'KEY') {
-                    winGame();
-                } else {
+                if(STATE.stage === 3 && STATE.inventory === 'KEY') winGame();
+                else {
                     this.prompt = "Locked.";
                     setTimeout(() => { this.prompt = "Unlock Door"; }, 2000);
                 }
             }
         });
 
-        // Fireplace
-        addBox(-11.5, 1, 0, 1, 2, 3, mats.wall);
+        addBox(-9.5, 1, 0, 1, 2, 3, mats.wall); // Fireplace
         const fireLight = new THREE.PointLight(0xff4400, 1, 10);
-        fireLight.position.set(-11, 0.5, 0);
-        scene.add(fireLight);
-        flickers.push(fireLight);
+        fireLight.position.set(-9, 0.5, 0); scene.add(fireLight); flickers.push(fireLight);
 
-        // House Lights (Off initially)
         const houseLights = [];
-        const lightPositions = [
-            {x:0, y:3, z:10}, {x:0, y:3, z:0}, {x:-8, y:3, z:0}, {x:8, y:3, z:0}, {x:0, y:3, z:-10}
-        ];
+        const lightPositions = [ {x:0, y:3, z:14}, {x:0, y:3, z:0}, {x:-6, y:3, z:0}, {x:6, y:3, z:0}, {x:0, y:3, z:-14} ];
         lightPositions.forEach(p => {
             const l = new THREE.PointLight(0xffeedd, 0, 8);
-            l.position.set(p.x, p.y, p.z);
-            scene.add(l);
-            houseLights.push(l);
+            l.position.set(p.x, p.y, p.z); scene.add(l); houseLights.push(l);
         });
 
         function triggerPowerEvent() {
             if(audio) audio.playInteract('door');
-            // Turn on lights
             houseLights.forEach(l => l.intensity = 0.8);
             setTimeout(() => {
-                // Flicker and die
                 let count = 0;
                 const intv = setInterval(() => {
                     houseLights.forEach(l => l.intensity = Math.random());
@@ -505,116 +452,72 @@
                     if(count > 15) {
                         clearInterval(intv);
                         houseLights.forEach(l => l.intensity = 0);
-                        // Entity spawns/enters CHASE mode logic here
                         entity.state = 'chase';
                     }
                 }, 100);
             }, 1000);
         }
 
-        // Particles
         const partGeo = new THREE.BufferGeometry();
-        const partCount = 500;
-        const partPos = new Float32Array(partCount * 3);
-        for(let i=0; i<partCount*3; i++) partPos[i] = (Math.random() - 0.5) * 20;
+        const partPos = new Float32Array(1500);
+        for(let i=0; i<1500; i++) partPos[i] = (Math.random() - 0.5) * 20;
         partGeo.setAttribute('position', new THREE.BufferAttribute(partPos, 3));
-        const partMat = new THREE.PointsMaterial({color: 0x888888, size: 0.05, transparent: true, opacity: 0.5});
-        const particles = new THREE.Points(partGeo, partMat);
+        const particles = new THREE.Points(partGeo, new THREE.PointsMaterial({color: 0x888888, size: 0.05, transparent: true, opacity: 0.5}));
         scene.add(particles);
 
         // ==========================================
-        // THE ENTITY (NotNoob)
+        // THE ENTITY
         // ==========================================
         const entityGroup = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2), mats.entity);
-        body.position.y = 1;
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.25), mats.entity);
-        head.position.y = 2.2;
-        const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), mats.entity);
-        armL.position.set(-0.4, 1.5, 0);
-        const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), mats.entity);
-        armR.position.set(0.4, 1.5, 0);
-        
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2), mats.entity); body.position.y = 1;
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.25), mats.entity); head.position.y = 2.2;
+        const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), mats.entity); armL.position.set(-0.4, 1.5, 0);
+        const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), mats.entity); armR.position.set(0.4, 1.5, 0);
         entityGroup.add(body); entityGroup.add(head); entityGroup.add(armL); entityGroup.add(armR);
-        entityGroup.position.set(0, 0, -20);
+        entityGroup.position.set(0, 0, -28); // Spawn in Basement
         scene.add(entityGroup);
 
         const entity = {
-            mesh: entityGroup,
-            state: 'patrol', // patrol, investigate, chase
-            speed: CONFIG.entitySpeedPatrol,
-            target: new THREE.Vector3(),
-            waypoints: [
-                new THREE.Vector3(0,0,0), new THREE.Vector3(-8,0,0), new THREE.Vector3(0,0,0), 
-                new THREE.Vector3(8,0,0), new THREE.Vector3(0,0,-8)
-            ],
-            wpIndex: 0,
-            animTime: 0,
-            
+            mesh: entityGroup, state: 'patrol', speed: CONFIG.entitySpeedPatrol,
+            target: new THREE.Vector3(), wpIndex: 0, animTime: 0,
+            waypoints: [ new THREE.Vector3(0,0,0), new THREE.Vector3(-6,0,0), new THREE.Vector3(0,0,0), new THREE.Vector3(6,0,0), new THREE.Vector3(0,0,-14) ],
             update: function(dt) {
-                // Logic
                 let distToPlayer = this.mesh.position.distanceTo(yawObj.position);
-                
-                // Line of sight check
                 const dirToPlayer = new THREE.Vector3().subVectors(yawObj.position, this.mesh.position).normalize();
                 const ray = new THREE.Raycaster(new THREE.Vector3(this.mesh.position.x, 2, this.mesh.position.z), dirToPlayer);
                 const hits = ray.intersectObjects([...colliders, yawObj], true);
                 
                 let canSeePlayer = false;
-                if(hits.length > 0 && hits[0].distance >= distToPlayer - 1) { // Hit player or very close
-                    canSeePlayer = true;
-                }
+                if(hits.length > 0 && hits[0].distance >= distToPlayer - 1) canSeePlayer = true;
 
-                if(canSeePlayer && distToPlayer < 15) {
-                    this.state = 'chase';
-                } else if(this.state === 'chase') {
-                    this.state = 'investigate';
-                    this.target.copy(yawObj.position); // Go to last known
-                }
+                if(canSeePlayer && distToPlayer < 15) this.state = 'chase';
+                else if(this.state === 'chase') { this.state = 'investigate'; this.target.copy(yawObj.position); }
 
-                // Move
                 if(this.state === 'patrol') {
-                    this.speed = CONFIG.entitySpeedPatrol;
-                    this.target.copy(this.waypoints[this.wpIndex]);
-                    if(this.mesh.position.distanceTo(this.target) < 1) {
-                        this.wpIndex = (this.wpIndex + 1) % this.waypoints.length;
-                    }
+                    this.speed = CONFIG.entitySpeedPatrol; this.target.copy(this.waypoints[this.wpIndex]);
+                    if(this.mesh.position.distanceTo(this.target) < 1) this.wpIndex = (this.wpIndex + 1) % this.waypoints.length;
                 } else if(this.state === 'chase') {
-                    this.speed = CONFIG.entitySpeedChase;
-                    this.target.copy(yawObj.position);
-                    this.target.y = 0;
+                    this.speed = CONFIG.entitySpeedChase; this.target.copy(yawObj.position); this.target.y = 0;
                 } else if(this.state === 'investigate') {
                     this.speed = CONFIG.entitySpeedPatrol;
-                    if(this.mesh.position.distanceTo(this.target) < 1) {
-                        this.state = 'patrol';
-                    }
+                    if(this.mesh.position.distanceTo(this.target) < 1) this.state = 'patrol';
                 }
 
-                // Sound / Vignette
                 if(audio) audio.updateHeartbeat(dt, Math.max(0, 1 - (distToPlayer / 15)));
                 const vigStr = Math.max(0, 0.8 - (distToPlayer / 15));
                 document.getElementById('vignette').style.background = `radial-gradient(circle, rgba(0,0,0,${vigStr*0.5}) 30%, rgba(0,0,0,${vigStr+0.2}) 80%, rgba(0,0,0,1) 100%)`;
 
-                // Move towards target
-                const moveDir = new THREE.Vector3().subVectors(this.target, this.mesh.position);
-                moveDir.y = 0;
+                const moveDir = new THREE.Vector3().subVectors(this.target, this.mesh.position); moveDir.y = 0;
                 if(moveDir.length() > 0.1) {
                     moveDir.normalize();
                     this.mesh.position.addScaledVector(moveDir, this.speed * dt);
-                    // Rotate to face
-                    const angle = Math.atan2(moveDir.x, moveDir.z);
-                    this.mesh.rotation.y = angle;
+                    this.mesh.rotation.y = Math.atan2(moveDir.x, moveDir.z);
                 }
 
-                // Animate
                 this.animTime += dt * this.speed * 2;
-                armL.rotation.x = Math.sin(this.animTime) * 0.5;
-                armR.rotation.x = -Math.sin(this.animTime) * 0.5;
+                armL.rotation.x = Math.sin(this.animTime) * 0.5; armR.rotation.x = -Math.sin(this.animTime) * 0.5;
 
-                // Catch Player
-                if(distToPlayer < 1.5 && STATE.lives > 0) {
-                    catchPlayer();
-                }
+                if(distToPlayer < 1.5 && STATE.lives > 0) catchPlayer();
             }
         };
 
@@ -623,118 +526,87 @@
             STATE.lives--;
             if(STATE.lives <= 0) {
                 document.getElementById('game-over').style.display = 'flex';
-                STATE.isRunning = false;
+                STATE.isRunning = false; document.exitPointerLock();
             } else {
-                // Screen effect & respawn
                 document.getElementById('vignette').style.background = 'black';
                 setTimeout(() => {
-                    yawObj.position.set(0, CONFIG.playerHeight, 10);
-                    entity.mesh.position.set(0, 0, -20);
-                    entity.state = 'patrol';
+                    yawObj.position.set(0, CONFIG.playerHeight, 14); // Respawn Foyer
+                    entity.mesh.position.set(0, 0, -28); entity.state = 'patrol'; // Reset Basement
                 }, 500);
             }
         }
 
         // ==========================================
-        // INPUT & UI OVERLAY
+        // INPUT & UI
         // ==========================================
         STATE.isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-        
         if(STATE.isMobile) {
-            document.getElementById('controls-text').innerHTML = "Mobile: Left side to move, Right side to look. Double tap to interact.";
             document.getElementById('touch-zone-left').style.display = 'block';
             document.getElementById('touch-zone-right').style.display = 'block';
             document.getElementById('btn-sprint').style.display = 'flex';
             document.getElementById('btn-crouch').style.display = 'flex';
         }
 
-        // Desktop Input
         document.addEventListener('keydown', (e) => {
             switch(e.code) {
-                case 'KeyW': STATE.input.forward = true; break;
-                case 'KeyS': STATE.input.backward = true; break;
-                case 'KeyA': STATE.input.left = true; break;
-                case 'KeyD': STATE.input.right = true; break;
-                case 'ShiftLeft': STATE.player.isSprinting = true; break;
-                case 'KeyC': STATE.player.isCrouching = true; break;
+                case 'KeyW': STATE.input.forward = true; break; case 'KeyS': STATE.input.backward = true; break;
+                case 'KeyA': STATE.input.left = true; break; case 'KeyD': STATE.input.right = true; break;
+                case 'ShiftLeft': STATE.player.isSprinting = true; break; case 'KeyC': STATE.player.isCrouching = true; break;
                 case 'KeyE': interactCenter(); break;
             }
         });
         document.addEventListener('keyup', (e) => {
             switch(e.code) {
-                case 'KeyW': STATE.input.forward = false; break;
-                case 'KeyS': STATE.input.backward = false; break;
-                case 'KeyA': STATE.input.left = false; break;
-                case 'KeyD': STATE.input.right = false; break;
-                case 'ShiftLeft': STATE.player.isSprinting = false; break;
-                case 'KeyC': STATE.player.isCrouching = false; break;
+                case 'KeyW': STATE.input.forward = false; break; case 'KeyS': STATE.input.backward = false; break;
+                case 'KeyA': STATE.input.left = false; break; case 'KeyD': STATE.input.right = false; break;
+                case 'ShiftLeft': STATE.player.isSprinting = false; break; case 'KeyC': STATE.player.isCrouching = false; break;
             }
         });
 
-        // Mouse Look (Desktop)
         document.addEventListener('mousemove', (e) => {
             if(!STATE.isMobile && document.pointerLockElement === document.body) {
                 STATE.input.yaw -= e.movementX * CONFIG.lookSens;
                 STATE.input.pitch -= e.movementY * CONFIG.lookSens;
                 STATE.input.pitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, STATE.input.pitch));
-                yawObj.rotation.y = STATE.input.yaw;
-                pitchObj.rotation.x = STATE.input.pitch;
+                yawObj.rotation.y = STATE.input.yaw; pitchObj.rotation.x = STATE.input.pitch;
             }
         });
         document.getElementById('glcanvas').addEventListener('click', () => {
             if(!STATE.isMobile && STATE.isRunning) document.body.requestPointerLock();
         });
 
-        // Mobile Input
-        const tLeft = document.getElementById('touch-zone-left');
-        const tRight = document.getElementById('touch-zone-right');
-
+        const tLeft = document.getElementById('touch-zone-left'), tRight = document.getElementById('touch-zone-right');
         tLeft.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.changedTouches[0];
-            STATE.touch.joystickActive = true;
-            STATE.touch.joyOrigin = {x: touch.clientX, y: touch.clientY};
-            STATE.touch.joyPos = {x: touch.clientX, y: touch.clientY};
+            e.preventDefault(); const t = e.changedTouches[0];
+            STATE.touch.joystickActive = true; STATE.touch.joyOrigin = STATE.touch.joyPos = {x: t.clientX, y: t.clientY};
         }, {passive: false});
-
         tLeft.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if(!STATE.touch.joystickActive) return;
-            const touch = Array.from(e.touches).find(t => t.clientX < window.innerWidth/2);
-            if(touch) STATE.touch.joyPos = {x: touch.clientX, y: touch.clientY};
+            e.preventDefault(); if(!STATE.touch.joystickActive) return;
+            const t = Array.from(e.touches).find(t => t.clientX < window.innerWidth/2);
+            if(t) STATE.touch.joyPos = {x: t.clientX, y: t.clientY};
         }, {passive: false});
-
         tLeft.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            STATE.touch.joystickActive = false;
+            e.preventDefault(); STATE.touch.joystickActive = false;
             STATE.input.forward = STATE.input.backward = STATE.input.left = STATE.input.right = false;
         }, {passive: false});
 
         let lastTouchX = 0, lastTouchY = 0;
         tRight.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = Array.from(e.changedTouches).find(t => t.clientX >= window.innerWidth/2);
-            if(touch) {
-                lastTouchX = touch.clientX; lastTouchY = touch.clientY;
-                const now = Date.now();
-                if(now - STATE.touch.lastTapTime < 300) interactCenter();
+            e.preventDefault(); const t = Array.from(e.changedTouches).find(t => t.clientX >= window.innerWidth/2);
+            if(t) {
+                lastTouchX = t.clientX; lastTouchY = t.clientY;
+                const now = Date.now(); if(now - STATE.touch.lastTapTime < 300) interactCenter();
                 STATE.touch.lastTapTime = now;
             }
         }, {passive: false});
-
         tRight.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touch = Array.from(e.touches).find(t => t.clientX >= window.innerWidth/2);
-            if(touch) {
-                const dx = touch.clientX - lastTouchX;
-                const dy = touch.clientY - lastTouchY;
-                lastTouchX = touch.clientX; lastTouchY = touch.clientY;
-                
-                STATE.input.yaw -= dx * CONFIG.touchLookSens;
-                STATE.input.pitch -= dy * CONFIG.touchLookSens;
+            e.preventDefault(); const t = Array.from(e.touches).find(t => t.clientX >= window.innerWidth/2);
+            if(t) {
+                STATE.input.yaw -= (t.clientX - lastTouchX) * CONFIG.touchLookSens;
+                STATE.input.pitch -= (t.clientY - lastTouchY) * CONFIG.touchLookSens;
                 STATE.input.pitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, STATE.input.pitch));
-                yawObj.rotation.y = STATE.input.yaw;
-                pitchObj.rotation.x = STATE.input.pitch;
+                yawObj.rotation.y = STATE.input.yaw; pitchObj.rotation.x = STATE.input.pitch;
+                lastTouchX = t.clientX; lastTouchY = t.clientY;
             }
         }, {passive: false});
 
@@ -743,70 +615,45 @@
         document.getElementById('btn-crouch').addEventListener('touchstart', (e) => { e.preventDefault(); STATE.player.isCrouching = true; });
         document.getElementById('btn-crouch').addEventListener('touchend', (e) => { e.preventDefault(); STATE.player.isCrouching = false; });
 
-        // HUD Rendering
         const uiCanvas = document.getElementById('ui-canvas');
         const uiCtx = uiCanvas.getContext('2d');
-
         function resize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            uiCanvas.width = window.innerWidth;
-            uiCanvas.height = window.innerHeight;
+            uiCanvas.width = window.innerWidth; uiCanvas.height = window.innerHeight;
         }
-        window.addEventListener('resize', resize);
-        resize();
+        window.addEventListener('resize', resize); resize();
 
         function drawHUD() {
             uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
-            
-            // Lives
-            uiCtx.fillStyle = 'red';
-            for(let i=0; i<STATE.lives; i++) {
-                uiCtx.font = '24px Arial';
-                uiCtx.fillText('♥', 20 + i*30, 40);
-            }
+            uiCtx.fillStyle = 'red'; uiCtx.font = '24px Arial';
+            for(let i=0; i<STATE.lives; i++) uiCtx.fillText('♥', 20 + i*30, 40);
 
-            // Inventory
-            uiCtx.strokeStyle = 'rgba(255,255,255,0.5)';
-            uiCtx.lineWidth = 2;
+            uiCtx.strokeStyle = 'rgba(255,255,255,0.5)'; uiCtx.lineWidth = 2;
             uiCtx.strokeRect(window.innerWidth/2 - 25, window.innerHeight - 60, 50, 50);
             if(STATE.inventory) {
-                uiCtx.fillStyle = 'white';
-                uiCtx.font = '12px Courier';
-                uiCtx.textAlign = 'center';
+                uiCtx.fillStyle = 'white'; uiCtx.font = '12px Courier'; uiCtx.textAlign = 'center';
                 uiCtx.fillText(STATE.inventory, window.innerWidth/2, window.innerHeight - 30);
             }
 
-            // Interact Prompt
             if(STATE.interactPrompt) {
-                uiCtx.fillStyle = 'white';
-                uiCtx.font = '16px Courier';
-                uiCtx.textAlign = 'center';
-                uiCtx.fillText((STATE.isMobile ? "[Double Tap] " : "[E] ") + STATE.interactPrompt, window.innerWidth/2, window.innerHeight/2 + 40);
+                uiCtx.fillStyle = 'white'; uiCtx.font = '16px Courier'; uiCtx.textAlign = 'center';
+                uiCtx.fillText((STATE.isMobile ? "[Tap x2] " : "[E] ") + STATE.interactPrompt, window.innerWidth/2, window.innerHeight/2 + 40);
             }
 
-            // Joystick
             if(STATE.isMobile && STATE.touch.joystickActive) {
-                uiCtx.strokeStyle = 'rgba(255,255,255,0.3)';
-                uiCtx.beginPath();
-                uiCtx.arc(STATE.touch.joyOrigin.x, STATE.touch.joyOrigin.y, 50, 0, Math.PI*2);
-                uiCtx.stroke();
-                
-                uiCtx.fillStyle = 'rgba(255,255,255,0.5)';
-                uiCtx.beginPath();
-                uiCtx.arc(STATE.touch.joyPos.x, STATE.touch.joyPos.y, 20, 0, Math.PI*2);
-                uiCtx.fill();
+                uiCtx.strokeStyle = 'rgba(255,255,255,0.3)'; uiCtx.beginPath();
+                uiCtx.arc(STATE.touch.joyOrigin.x, STATE.touch.joyOrigin.y, 50, 0, Math.PI*2); uiCtx.stroke();
+                uiCtx.fillStyle = 'rgba(255,255,255,0.5)'; uiCtx.beginPath();
+                uiCtx.arc(STATE.touch.joyPos.x, STATE.touch.joyPos.y, 20, 0, Math.PI*2); uiCtx.fill();
             }
         }
 
         // ==========================================
-        // GAME LOGIC & LOOP
+        // GAME LOOP
         // ==========================================
         const raycaster = new THREE.Raycaster();
-
         function checkCollision(pos) {
-            // Simple bounding box check against colliders
             const pBox = new THREE.Box3(
                 new THREE.Vector3(pos.x - 0.3, pos.y, pos.z - 0.3),
                 new THREE.Vector3(pos.x + 0.3, pos.y + 1.5, pos.z + 0.3)
@@ -819,119 +666,72 @@
             return false;
         }
 
-        function interactCenter() {
-            if(STATE.interactTarget && STATE.interactTarget.interact) {
-                STATE.interactTarget.interact();
-            }
-        }
+        function interactCenter() { if(STATE.interactTarget && STATE.interactTarget.interact) STATE.interactTarget.interact(); }
 
-        let lastTime = performance.now();
-        let footstepTimer = 0;
-
+        let lastTime = performance.now(); let footstepTimer = 0;
         function gameLoop(currentTime) {
             requestAnimationFrame(gameLoop);
-            const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
-            lastTime = currentTime;
-
+            const dt = Math.min((currentTime - lastTime) / 1000, 0.1); lastTime = currentTime;
             if(!STATE.isRunning) return;
 
-            // Player Movement
             let speed = CONFIG.playerSpeed;
             if(STATE.player.isSprinting) speed *= CONFIG.sprintMult;
             if(STATE.player.isCrouching) speed *= CONFIG.crouchMult;
 
-            // Mobile Joystick logic to WASD
             if(STATE.isMobile && STATE.touch.joystickActive) {
-                const dx = STATE.touch.joyPos.x - STATE.touch.joyOrigin.x;
-                const dy = STATE.touch.joyPos.y - STATE.touch.joyOrigin.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                if(dist > 10) {
-                    STATE.input.forward = dy < -10;
-                    STATE.input.backward = dy > 10;
-                    STATE.input.left = dx < -10;
-                    STATE.input.right = dx > 10;
+                const dx = STATE.touch.joyPos.x - STATE.touch.joyOrigin.x, dy = STATE.touch.joyPos.y - STATE.touch.joyOrigin.y;
+                if(Math.sqrt(dx*dx + dy*dy) > 10) {
+                    STATE.input.forward = dy < -10; STATE.input.backward = dy > 10;
+                    STATE.input.left = dx < -10; STATE.input.right = dx > 10;
                 }
             }
 
             STATE.player.direction.set(0, 0, 0);
-            if(STATE.input.forward) STATE.player.direction.z -= 1;
-            if(STATE.input.backward) STATE.player.direction.z += 1;
-            if(STATE.input.left) STATE.player.direction.x -= 1;
-            if(STATE.input.right) STATE.player.direction.x += 1;
+            if(STATE.input.forward) STATE.player.direction.z -= 1; if(STATE.input.backward) STATE.player.direction.z += 1;
+            if(STATE.input.left) STATE.player.direction.x -= 1; if(STATE.input.right) STATE.player.direction.x += 1;
             STATE.player.direction.normalize();
 
             if(STATE.player.direction.lengthSq() > 0) {
                 const fwd = new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0), yawObj.rotation.y);
                 const rgt = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), yawObj.rotation.y);
-                
-                const moveVec = new THREE.Vector3()
-                    .addScaledVector(fwd, -STATE.player.direction.z)
-                    .addScaledVector(rgt, STATE.player.direction.x)
-                    .normalize().multiplyScalar(speed * dt);
+                const moveVec = new THREE.Vector3().addScaledVector(fwd, -STATE.player.direction.z).addScaledVector(rgt, STATE.player.direction.x).normalize().multiplyScalar(speed * dt);
 
-                // Collision X
-                let nextPos = yawObj.position.clone();
-                nextPos.x += moveVec.x;
+                let nextPos = yawObj.position.clone(); nextPos.x += moveVec.x;
                 if(!checkCollision(nextPos)) yawObj.position.x = nextPos.x;
                 
-                // Collision Z
-                nextPos = yawObj.position.clone();
-                nextPos.z += moveVec.z;
+                nextPos = yawObj.position.clone(); nextPos.z += moveVec.z;
                 if(!checkCollision(nextPos)) yawObj.position.z = nextPos.z;
 
-                // Footsteps & Noise
                 footstepTimer += dt * speed;
                 if(footstepTimer > 1.5) {
                     if(audio) audio.playFootstep(STATE.player.isCrouching ? 0.02 : (STATE.player.isSprinting ? 0.2 : 0.08));
                     footstepTimer = 0;
-                    
-                    // Alert entity if sprinting
-                    if(STATE.player.isSprinting && entity.state === 'patrol') {
-                        if(entity.mesh.position.distanceTo(yawObj.position) < 20) {
-                            entity.state = 'investigate';
-                            entity.target.copy(yawObj.position);
-                        }
+                    if(STATE.player.isSprinting && entity.state === 'patrol' && entity.mesh.position.distanceTo(yawObj.position) < 20) {
+                        entity.state = 'investigate'; entity.target.copy(yawObj.position);
                     }
                 }
-                
-                // View bobbing
                 pitchObj.position.y = Math.sin(currentTime * 0.01 * speed) * 0.05;
-            } else {
-                pitchObj.position.y += (0 - pitchObj.position.y) * 0.1;
-            }
+            } else pitchObj.position.y += (0 - pitchObj.position.y) * 0.1;
 
-            // Gravity / Stairs
             const downRay = new THREE.Raycaster(yawObj.position.clone().add(new THREE.Vector3(0,1,0)), new THREE.Vector3(0,-1,0));
             const floorHits = downRay.intersectObjects(colliders);
-            let targetY = 0;
-            if(floorHits.length > 0 && floorHits[0].distance < 10) {
-                targetY = floorHits[0].point.y;
-            }
+            let targetY = 0; if(floorHits.length > 0 && floorHits[0].distance < 10) targetY = floorHits[0].point.y;
             yawObj.position.y += (targetY + (STATE.player.isCrouching ? CONFIG.crouchHeight : CONFIG.playerHeight) - yawObj.position.y) * 0.1;
 
-            // Interaction Raycast
             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
             const hits = raycaster.intersectObjects(interactables.map(i => i.mesh));
-            STATE.interactPrompt = "";
-            STATE.interactTarget = null;
+            STATE.interactPrompt = ""; STATE.interactTarget = null;
             if(hits.length > 0 && hits[0].distance < 2.5) {
                 const target = interactables.find(i => i.mesh === hits[0].object);
-                if(target) {
-                    STATE.interactTarget = target;
-                    STATE.interactPrompt = target.prompt || "Interact";
-                }
+                if(target) { STATE.interactTarget = target; STATE.interactPrompt = target.prompt || "Interact"; }
             }
 
-            // Updates
             interactables.forEach(i => { if(i.update) i.update(); });
             entity.update(dt);
-            
             flickers.forEach(l => l.intensity = 0.8 + Math.random()*0.4);
-
             particles.rotation.y += 0.05 * dt;
 
-            renderer.render(scene, camera);
-            drawHUD();
+            renderer.render(scene, camera); drawHUD();
         }
 
         // ==========================================
@@ -939,36 +739,23 @@
         // ==========================================
         document.getElementById('btn-start').addEventListener('click', () => {
             document.getElementById('start-screen').style.display = 'none';
-            if(!audio) {
-                audio = new AudioEngine();
-                audio.startAmbient();
-            }
+            if(!audio) { audio = new AudioEngine(); audio.startAmbient(); }
             if(audio.ctx.state === 'suspended') audio.ctx.resume();
             
-            yawObj.position.set(0, CONFIG.playerHeight, 10);
+            yawObj.position.set(0, CONFIG.playerHeight, 14); // Exact spawn in Foyer center
             STATE.isRunning = true;
             if(!STATE.isMobile) document.body.requestPointerLock();
         });
 
-        document.getElementById('btn-restart').addEventListener('click', () => {
-            location.reload(); // Hard reset for single-file reliability
-        });
-
-        document.getElementById('btn-replay').addEventListener('click', () => {
-            location.reload();
-        });
+        document.getElementById('btn-restart').addEventListener('click', () => location.reload());
+        document.getElementById('btn-replay').addEventListener('click', () => location.reload());
 
         function winGame() {
-            STATE.isRunning = false;
-            document.getElementById('victory').style.display = 'flex';
-            if(STATE.isMobile) {
-                document.getElementById('touch-zone-left').style.display = 'none';
-                document.getElementById('touch-zone-right').style.display = 'none';
-            }
+            STATE.isRunning = false; document.getElementById('victory').style.display = 'flex';
+            if(STATE.isMobile) { document.getElementById('touch-zone-left').style.display = 'none'; document.getElementById('touch-zone-right').style.display = 'none'; }
             document.exitPointerLock();
         }
 
-        // Start Loop
         requestAnimationFrame(gameLoop);
 
     </script>
