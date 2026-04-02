@@ -252,8 +252,7 @@
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
         const pitchObj = new THREE.Object3D();
         const yawObj = new THREE.Object3D();
-        // Set specific spawn inside Foyer
-        yawObj.position.set(0, CONFIG.playerHeight, 14);
+        yawObj.position.set(0, CONFIG.playerHeight, 14); // Exactly inside the Foyer room
         yawObj.add(pitchObj); pitchObj.add(camera); scene.add(yawObj);
 
         const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('glcanvas'), antialias: true });
@@ -293,58 +292,59 @@
             return mesh;
         }
 
-        // Perfect coordinate mapped walls (No overlapping spawns)
         function wall(x, y, z, w, h, d) { addBox(x, y, z, w, h, d, mats.wall); }
         function floorCeil(x, z, w, d) {
-            addBox(x, 0, z, w, 0.5, d, mats.floor); addBox(x, 3.5, z, w, 0.5, d, mats.floor);
+            addBox(x, 0, z, w, 0.5, d, mats.floor); 
+            addBox(x, 3.5, z, w, 0.5, d, mats.floor);
         }
 
+        // Layout creation
         floorCeil(0, 0, 4, 20);    // Hallway
-        floorCeil(0, 14, 8, 8);    // Foyer
+        floorCeil(0, 14, 8, 8);    // Foyer (Spawn location at z=14)
         floorCeil(-6, 0, 8, 8);    // Living
         floorCeil(6, 0, 8, 8);     // Bedroom
         floorCeil(0, -14, 10, 8);  // Kitchen
 
         // Hallway Walls
-        wall(-2, 1.75, -5.5, 0.5, 3.5, 9); wall(-2, 1.75, 5.5, 0.5, 3.5, 9); // West (gap at z=0)
-        wall(2, 1.75, -5.5, 0.5, 3.5, 9);  wall(2, 1.75, 5.5, 0.5, 3.5, 9);  // East (gap at z=0)
+        wall(-2, 1.75, -5.5, 0.5, 3.5, 9); wall(-2, 1.75, 5.5, 0.5, 3.5, 9); 
+        wall(2, 1.75, -5.5, 0.5, 3.5, 9);  wall(2, 1.75, 5.5, 0.5, 3.5, 9);  
         
         // Foyer Walls
-        wall(-2.5, 1.75, 10, 3, 3.5, 0.5); wall(2.5, 1.75, 10, 3, 3.5, 0.5); // North (gap at x=0)
-        wall(-4, 1.75, 14, 0.5, 3.5, 8); // West
-        wall(4, 1.75, 14, 0.5, 3.5, 8);  // East
-        wall(-2.5, 1.75, 18, 3, 3.5, 0.5); wall(2.5, 1.75, 18, 3, 3.5, 0.5); // South (gap at x=0)
+        wall(-2.5, 1.75, 10, 3, 3.5, 0.5); wall(2.5, 1.75, 10, 3, 3.5, 0.5); 
+        wall(-4, 1.75, 14, 0.5, 3.5, 8); 
+        wall(4, 1.75, 14, 0.5, 3.5, 8);  
+        wall(-2.5, 1.75, 18, 3, 3.5, 0.5); wall(2.5, 1.75, 18, 3, 3.5, 0.5); 
 
         // Living Room
-        wall(-6, 1.75, -4, 8, 3.5, 0.5); // North
-        wall(-6, 1.75, 4, 8, 3.5, 0.5);  // South
-        wall(-10, 1.75, 0, 0.5, 3.5, 8); // West
+        wall(-6, 1.75, -4, 8, 3.5, 0.5); 
+        wall(-6, 1.75, 4, 8, 3.5, 0.5);  
+        wall(-10, 1.75, 0, 0.5, 3.5, 8); 
 
         // Bedroom
-        wall(6, 1.75, -4, 8, 3.5, 0.5); // North
-        wall(6, 1.75, 4, 8, 3.5, 0.5);  // South
-        wall(10, 1.75, 0, 0.5, 3.5, 8); // East
+        wall(6, 1.75, -4, 8, 3.5, 0.5); 
+        wall(6, 1.75, 4, 8, 3.5, 0.5);  
+        wall(10, 1.75, 0, 0.5, 3.5, 8); 
 
         // Kitchen
-        wall(-3, 1.75, -10, 4, 3.5, 0.5); wall(3, 1.75, -10, 4, 3.5, 0.5); // South
-        wall(-5, 1.75, -14, 0.5, 3.5, 8); // West
-        wall(5, 1.75, -14, 0.5, 3.5, 8);  // East
-        wall(-3, 1.75, -18, 4, 3.5, 0.5); wall(3, 1.75, -18, 4, 3.5, 0.5); // North
+        wall(-3, 1.75, -10, 4, 3.5, 0.5); wall(3, 1.75, -10, 4, 3.5, 0.5); 
+        wall(-5, 1.75, -14, 0.5, 3.5, 8); 
+        wall(5, 1.75, -14, 0.5, 3.5, 8);  
+        wall(-3, 1.75, -18, 4, 3.5, 0.5); wall(3, 1.75, -18, 4, 3.5, 0.5); 
 
         // Basement Stairs
-        wall(-2, -1.5, -20.5, 0.5, 7, 5); // West
-        wall(2, -1.5, -20.5, 0.5, 7, 5);  // East
+        wall(-2, -1.5, -20.5, 0.5, 7, 5); 
+        wall(2, -1.5, -20.5, 0.5, 7, 5);  
         const stairs = addBox(0, -2.5, -20.5, 4, 0.5, 7, mats.wood); stairs.rotation.x = 0.6; 
 
         // Basement
         addBox(0, -5, -28, 10, 0.5, 10, mats.floor); // Floor
         addBox(0, -1.5, -28, 10, 0.5, 10, mats.floor); // Ceiling
-        wall(0, -3.25, -33, 10, 3.5, 0.5); // North
-        wall(-3, -3.25, -23, 4, 3.5, 0.5); wall(3, -3.25, -23, 4, 3.5, 0.5); // South
-        wall(-5, -3.25, -28, 0.5, 3.5, 10); // West
-        wall(5, -3.25, -28, 0.5, 3.5, 10);  // East
+        wall(0, -3.25, -33, 10, 3.5, 0.5); 
+        wall(-3, -3.25, -23, 4, 3.5, 0.5); wall(3, -3.25, -23, 4, 3.5, 0.5); 
+        wall(-5, -3.25, -28, 0.5, 3.5, 10); 
+        wall(5, -3.25, -28, 0.5, 3.5, 10);  
 
-        // Door System
+        // Doors
         function createDoor(pivotX, pivotY, pivotZ, rotY) {
             const pivot = new THREE.Group();
             pivot.position.set(pivotX, pivotY, pivotZ);
@@ -372,7 +372,7 @@
             interactables.push(interactObj);
         }
 
-        createDoor(-1, 0, 10, 0); // Foyer
+        createDoor(-1, 0, 10, 0); // Foyer to Hall
         createDoor(-1, 0, -10, 0); // Kitchen
         createDoor(-2, 0, 1, Math.PI/2); // Living
         createDoor(2, 0, -1, -Math.PI/2); // Bedroom
@@ -474,13 +474,15 @@
         const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), mats.entity); armL.position.set(-0.4, 1.5, 0);
         const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), mats.entity); armR.position.set(0.4, 1.5, 0);
         entityGroup.add(body); entityGroup.add(head); entityGroup.add(armL); entityGroup.add(armR);
-        entityGroup.position.set(0, 0, -28); // Spawn in Basement
+        
+        // Spawn Entity safely on the main floor (Hallway north end) so it doesn't float from basement
+        entityGroup.position.set(0, 0, -8); 
         scene.add(entityGroup);
 
         const entity = {
             mesh: entityGroup, state: 'patrol', speed: CONFIG.entitySpeedPatrol,
             target: new THREE.Vector3(), wpIndex: 0, animTime: 0,
-            waypoints: [ new THREE.Vector3(0,0,0), new THREE.Vector3(-6,0,0), new THREE.Vector3(0,0,0), new THREE.Vector3(6,0,0), new THREE.Vector3(0,0,-14) ],
+            waypoints: [ new THREE.Vector3(0,0,0), new THREE.Vector3(-6,0,0), new THREE.Vector3(0,0,0), new THREE.Vector3(6,0,0), new THREE.Vector3(0,0,-8) ],
             update: function(dt) {
                 let distToPlayer = this.mesh.position.distanceTo(yawObj.position);
                 const dirToPlayer = new THREE.Vector3().subVectors(yawObj.position, this.mesh.position).normalize();
@@ -531,7 +533,7 @@
                 document.getElementById('vignette').style.background = 'black';
                 setTimeout(() => {
                     yawObj.position.set(0, CONFIG.playerHeight, 14); // Respawn Foyer
-                    entity.mesh.position.set(0, 0, -28); entity.state = 'patrol'; // Reset Basement
+                    entity.mesh.position.set(0, 0, -8); entity.state = 'patrol'; // Reset Hallway
                 }, 500);
             }
         }
@@ -653,10 +655,13 @@
         // GAME LOOP
         // ==========================================
         const raycaster = new THREE.Raycaster();
+        
         function checkCollision(pos) {
+            // FIX: Check collisions specifically against the midsection of the player (y+0.2 to y+1.0)
+            // This safely avoids all floor elements (y <= 0.25) and ceilings (y >= 3.25)
             const pBox = new THREE.Box3(
-                new THREE.Vector3(pos.x - 0.3, pos.y, pos.z - 0.3),
-                new THREE.Vector3(pos.x + 0.3, pos.y + 1.5, pos.z + 0.3)
+                new THREE.Vector3(pos.x - 0.3, pos.y + 0.2, pos.z - 0.3),
+                new THREE.Vector3(pos.x + 0.3, pos.y + 1.0, pos.z + 0.3)
             );
             for(let c of colliders) {
                 if(!c.geometry.boundingBox) c.geometry.computeBoundingBox();
@@ -742,7 +747,7 @@
             if(!audio) { audio = new AudioEngine(); audio.startAmbient(); }
             if(audio.ctx.state === 'suspended') audio.ctx.resume();
             
-            yawObj.position.set(0, CONFIG.playerHeight, 14); // Exact spawn in Foyer center
+            yawObj.position.set(0, CONFIG.playerHeight, 14); 
             STATE.isRunning = true;
             if(!STATE.isMobile) document.body.requestPointerLock();
         });
