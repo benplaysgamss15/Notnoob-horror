@@ -12,17 +12,18 @@
         #vignette { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; background: radial-gradient(circle, rgba(0,0,0,0) 30%, rgba(0,0,0,0.8) 80%, rgba(0,0,0,1) 100%); transition: background 0.2s; }
         
         .overlay-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #000; color: #fff; text-align: center; }
-        h1 { font-size: 3rem; color: #8a0303; text-shadow: 0 0 10px red; letter-spacing: 5px; margin-bottom: 10px; }
+        h1 { font-size: 3rem; color: #e6b800; text-shadow: 0 0 10px #ffcc00; letter-spacing: 5px; margin-bottom: 10px; }
         p { font-size: 1.2rem; max-width: 600px; padding: 0 20px; line-height: 1.5; color: #ccc; }
         .btn { margin-top: 30px; padding: 15px 40px; font-size: 1.5rem; background: #222; color: #fff; border: 2px solid #555; cursor: pointer; font-family: var(--main-font); transition: all 0.2s; }
-        .btn:hover { background: #8a0303; border-color: red; }
+        .btn:hover { background: #e6b800; color: #000; }
         
         #game-over, #victory { display: none; background: rgba(0,0,0,0.9); }
+        #game-over h1 { color: #8a0303; text-shadow: 0 0 10px red; }
         
         /* Mobile Touch Zones */
         #touch-zone-left { position: absolute; bottom: 0; left: 0; width: 50%; height: 100%; z-index: 4; }
         #touch-zone-right { position: absolute; bottom: 0; right: 0; width: 50%; height: 100%; z-index: 4; }
-        .mobile-btn { position: absolute; width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); z-index: 5; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold; font-size: 12px; pointer-events: auto; }
+        .mobile-btn { position: absolute; width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); z-index: 5; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold; font-size: 12px; pointer-events: auto; user-select: none; }
         #btn-sprint { bottom: 20px; right: 20px; }
         #btn-crouch { bottom: 90px; right: 20px; }
         
@@ -33,20 +34,20 @@
 
     <div id="start-screen" class="overlay-screen">
         <h1>NOTNOOB</h1>
-        <p>You are trapped. Find the fuse. Restore power. Find the key. Escape.</p>
+        <p>You woke up in a strange room. Find the fuse. Restore power in the basement. Find the key. Escape.</p>
         <p id="controls-text">Desktop: WASD to Move, E to Interact, Shift to Sprint, C to Crouch.<br>Mobile: Drag left to move, drag right to look, Double-tap to interact.</p>
-        <button class="btn" id="btn-start">ENTER HOUSE</button>
+        <button class="btn" id="btn-start">WAKE UP</button>
     </div>
 
     <div id="game-over" class="overlay-screen">
         <h1>NOTNOOB FOUND YOU</h1>
-        <p>You have perished in the dark.</p>
-        <button class="btn" id="btn-restart">RESTART</button>
+        <p>Your smile fades in the dark.</p>
+        <button class="btn" id="btn-restart" style="border-color: red;">RESTART</button>
     </div>
 
     <div id="victory" class="overlay-screen" style="background: #fff; color: #000;">
         <h1 style="color: #000; text-shadow: none;">YOU ESCAPED</h1>
-        <p style="color: #333;">The nightmare is over.</p>
+        <p style="color: #333;">You made it out alive.</p>
         <button class="btn" id="btn-replay" style="background: #ddd; color:#000; border-color:#999;">PLAY AGAIN</button>
     </div>
 
@@ -70,29 +71,15 @@
         const CONFIG = {
             playerSpeed: 3.5, sprintMult: 1.8, crouchMult: 0.5,
             playerHeight: 1.7, crouchHeight: 1.0,
-            gravity: 15, jumpForce: 0, 
             lookSens: 0.002, touchLookSens: 0.005,
-            entitySpeedPatrol: 1.5, entitySpeedChase: 4.2
+            entitySpeedPatrol: 1.8, entitySpeedChase: 4.5
         };
 
         const STATE = {
-            isRunning: false, isMobile: false,
-            lives: 3, stage: 0,
-            inventory: null,
-            player: {
-                velocity: new THREE.Vector3(),
-                direction: new THREE.Vector3(),
-                isSprinting: false, isCrouching: false,
-                noise: 0
-            },
-            input: {
-                forward: false, backward: false, left: false, right: false,
-                pitch: 0, yaw: 0
-            },
-            touch: {
-                joystickActive: false, joyOrigin: {x:0, y:0}, joyPos: {x:0, y:0},
-                lookX: 0, lookY: 0, lastTapTime: 0
-            },
+            isRunning: false, isMobile: false, lives: 3, stage: 0, inventory: null,
+            player: { velocity: new THREE.Vector3(), direction: new THREE.Vector3(), isSprinting: false, isCrouching: false },
+            input: { forward: false, backward: false, left: false, right: false, pitch: 0, yaw: 0 },
+            touch: { joystickActive: false, joyOrigin: {x:0, y:0}, joyPos: {x:0, y:0}, lastTapTime: 0 },
             interactPrompt: "", interactTarget: null
         };
 
@@ -102,16 +89,9 @@
         class AudioEngine {
             constructor() {
                 this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                this.masterGain = this.ctx.createGain();
-                this.masterGain.connect(this.ctx.destination);
+                this.masterGain = this.ctx.createGain(); this.masterGain.connect(this.ctx.destination);
+                this.ambientOsc = null; this.heartbeatGain = null; this.nextHeartbeat = 0;
                 
-                this.ambientOsc = null;
-                this.heartbeatGain = null;
-                this.nextHeartbeat = 0;
-                this.createNoiseBuffer();
-            }
-
-            createNoiseBuffer() {
                 const bufferSize = this.ctx.sampleRate * 2;
                 this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
                 const output = this.noiseBuffer.getChannelData(0);
@@ -120,83 +100,41 @@
 
             playFootstep(volume = 0.1) {
                 if(this.ctx.state !== 'running') return;
-                const src = this.ctx.createBufferSource();
-                src.buffer = this.noiseBuffer;
-                
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = "lowpass";
-                filter.frequency.value = 300 + Math.random() * 200;
-
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(volume, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
-
+                const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuffer;
+                const filter = this.ctx.createBiquadFilter(); filter.type = "lowpass"; filter.frequency.value = 300 + Math.random() * 200;
+                const gain = this.ctx.createGain(); gain.gain.setValueAtTime(volume, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
                 src.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
                 src.start(); src.stop(this.ctx.currentTime + 0.2);
             }
 
             startAmbient() {
                 if(this.ambientOsc) return;
-                this.ambientOsc = this.ctx.createOscillator();
-                this.ambientOsc.type = "sine";
-                this.ambientOsc.frequency.value = 45;
-                
-                const gain = this.ctx.createGain();
-                gain.gain.value = 0.05;
-                
-                this.ambientOsc.connect(gain); gain.connect(this.masterGain);
-                this.ambientOsc.start();
+                this.ambientOsc = this.ctx.createOscillator(); this.ambientOsc.type = "sine"; this.ambientOsc.frequency.value = 45;
+                const gain = this.ctx.createGain(); gain.gain.value = 0.05;
+                this.ambientOsc.connect(gain); gain.connect(this.masterGain); this.ambientOsc.start();
             }
 
             playScare() {
-                const osc = this.ctx.createOscillator();
-                osc.type = "sawtooth";
-                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.1);
-                
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(1, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.5);
-                
-                osc.connect(gain); gain.connect(this.masterGain);
-                osc.start(); osc.stop(this.ctx.currentTime + 1.5);
+                const osc = this.ctx.createOscillator(); osc.type = "sawtooth"; osc.frequency.setValueAtTime(150, this.ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.1);
+                const gain = this.ctx.createGain(); gain.gain.setValueAtTime(1, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.5);
+                osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + 1.5);
             }
 
             playInteract(type) {
-                const osc = this.ctx.createOscillator();
-                osc.type = type === 'door' ? 'square' : 'triangle';
-                osc.frequency.setValueAtTime(type === 'door' ? 100 : 600, this.ctx.currentTime);
+                const osc = this.ctx.createOscillator(); osc.type = type === 'door' ? 'square' : 'triangle'; osc.frequency.setValueAtTime(type === 'door' ? 100 : 600, this.ctx.currentTime);
                 if(type === 'door') osc.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 0.5);
-                
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5);
-                
-                osc.connect(gain); gain.connect(this.masterGain);
-                osc.start(); osc.stop(this.ctx.currentTime + 0.5);
+                const gain = this.ctx.createGain(); gain.gain.setValueAtTime(0.2, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5);
+                osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + 0.5);
             }
 
             updateHeartbeat(dt, threatLevel) {
-                if(!this.heartbeatGain) {
-                    this.heartbeatGain = this.ctx.createGain();
-                    this.heartbeatGain.connect(this.masterGain);
-                    this.heartbeatGain.gain.value = 0;
-                }
+                if(!this.heartbeatGain) { this.heartbeatGain = this.ctx.createGain(); this.heartbeatGain.connect(this.masterGain); this.heartbeatGain.gain.value = 0; }
                 if(threatLevel > 0) {
                     const rate = 1.0 - (threatLevel * 0.6);
                     if(this.ctx.currentTime > this.nextHeartbeat) {
-                        const osc = this.ctx.createOscillator();
-                        osc.type = "sine";
-                        osc.frequency.setValueAtTime(50, this.ctx.currentTime);
-                        osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.1);
-                        
-                        const env = this.ctx.createGain();
-                        env.gain.setValueAtTime(threatLevel * 0.5, this.ctx.currentTime);
-                        env.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
-                        
-                        osc.connect(env); env.connect(this.heartbeatGain);
-                        osc.start(); osc.stop(this.ctx.currentTime + 0.2);
-                        
+                        const osc = this.ctx.createOscillator(); osc.type = "sine"; osc.frequency.setValueAtTime(50, this.ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.1);
+                        const env = this.ctx.createGain(); env.gain.setValueAtTime(threatLevel * 0.5, this.ctx.currentTime); env.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                        osc.connect(env); env.connect(this.heartbeatGain); osc.start(); osc.stop(this.ctx.currentTime + 0.2);
                         this.nextHeartbeat = this.ctx.currentTime + rate;
                     }
                 }
@@ -205,65 +143,52 @@
         let audio;
 
         // ==========================================
-        // PROCEDURAL TEXTURES
+        // PROCEDURAL TEXTURES & MATERIALS
         // ==========================================
         function createTexture(type) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 256; canvas.height = 256;
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
             const ctx = canvas.getContext('2d');
             
             if(type === 'wood') {
-                ctx.fillStyle = '#3a2311'; ctx.fillRect(0,0,256,256);
-                ctx.fillStyle = '#2a1508';
+                ctx.fillStyle = '#3a2311'; ctx.fillRect(0,0,256,256); ctx.fillStyle = '#2a1508';
                 for(let i=0; i<100; i++) ctx.fillRect(Math.random()*256, 0, Math.random()*3+1, 256);
             } else if(type === 'wall') {
-                ctx.fillStyle = '#4a4a4a'; ctx.fillRect(0,0,256,256);
-                ctx.fillStyle = '#333';
+                ctx.fillStyle = '#3a3a3a'; ctx.fillRect(0,0,256,256); ctx.fillStyle = '#2d2d2d';
                 for(let i=0; i<500; i++) ctx.fillRect(Math.random()*256, Math.random()*256, 2, 2);
-                ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                for(let i=0; i<256; i+=32) ctx.fillRect(i, 0, 16, 256);
+                ctx.fillStyle = 'rgba(0,0,0,0.1)'; for(let i=0; i<256; i+=32) ctx.fillRect(i, 0, 16, 256);
             } else if(type === 'floor') {
-                ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0,0,256,256);
-                ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+                ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0,0,256,256); ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
                 for(let y=0; y<256; y+=64) for(let x=0; x<256; x+=64) ctx.strokeRect(x,y,64,64);
-            } else if(type === 'entity') {
-                ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,256,256);
-                ctx.fillStyle = '#dddddd';
-                for(let i=0; i<200; i++) {
-                    ctx.beginPath(); ctx.arc(Math.random()*256, Math.random()*256, Math.random()*5, 0, Math.PI*2); ctx.fill();
-                }
             } else if(type === 'door') {
-                ctx.fillStyle = '#2b1b0c'; ctx.fillRect(0,0,256,256);
-                ctx.strokeStyle = '#1a0f05'; ctx.lineWidth = 4;
+                ctx.fillStyle = '#2b1b0c'; ctx.fillRect(0,0,256,256); ctx.strokeStyle = '#1a0f05'; ctx.lineWidth = 4;
                 ctx.strokeRect(20, 20, 216, 100); ctx.strokeRect(20, 136, 216, 100);
+            } else if(type === 'smiley') {
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,256,256);
+                ctx.fillStyle = '#000000';
+                ctx.beginPath(); ctx.arc(80, 100, 15, 0, Math.PI*2); ctx.fill(); // Left eye
+                ctx.beginPath(); ctx.arc(176, 100, 15, 0, Math.PI*2); ctx.fill(); // Right eye
+                ctx.beginPath(); ctx.arc(128, 140, 50, 0, Math.PI); ctx.lineWidth = 15; ctx.stroke(); // Smile
+            } else if(type === 'smiley_shirt') {
+                ctx.fillStyle = '#ffcc00'; ctx.fillRect(0,0,256,256);
+                ctx.fillStyle = '#000000';
+                ctx.beginPath(); ctx.arc(100, 100, 10, 0, Math.PI*2); ctx.fill(); 
+                ctx.beginPath(); ctx.arc(156, 100, 10, 0, Math.PI*2); ctx.fill(); 
+                ctx.beginPath(); ctx.arc(128, 130, 30, 0, Math.PI); ctx.lineWidth = 10; ctx.stroke(); 
             }
 
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
-            return tex;
+            const tex = new THREE.CanvasTexture(canvas); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; return tex;
         }
 
-        // ==========================================
-        // THREE.JS SETUP & WORLD GEN
-        // ==========================================
-        const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x050505, 0.08);
-
+        const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x050505, 0.08);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
-        const pitchObj = new THREE.Object3D();
-        const yawObj = new THREE.Object3D();
-        yawObj.position.set(0, CONFIG.playerHeight, 14); // Exactly inside the Foyer room
+        const pitchObj = new THREE.Object3D(); const yawObj = new THREE.Object3D();
+        yawObj.position.set(0, CONFIG.playerHeight, 0); // Spawn in Bedroom
         yawObj.add(pitchObj); pitchObj.add(camera); scene.add(yawObj);
 
         const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('glcanvas'), antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.03);
-        scene.add(ambientLight);
-
+        scene.add(new THREE.AmbientLight(0xffffff, 0.03));
         const flashlight = new THREE.SpotLight(0xffffff, 1.5, 20, Math.PI/6, 0.5, 1);
         flashlight.position.set(0, 0, 0); flashlight.target.position.set(0, 0, -1);
         flashlight.castShadow = true; camera.add(flashlight); camera.add(flashlight.target);
@@ -273,173 +198,145 @@
             wall: new THREE.MeshStandardMaterial({ map: createTexture('wall'), roughness: 1.0 }),
             floor: new THREE.MeshStandardMaterial({ map: createTexture('floor'), roughness: 0.7 }),
             door: new THREE.MeshStandardMaterial({ map: createTexture('door'), roughness: 0.8 }),
-            entity: new THREE.MeshStandardMaterial({ map: createTexture('entity'), roughness: 1.0, emissive: 0x111111 })
+            white: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 }),
+            red: new THREE.MeshStandardMaterial({ color: 0x880000, roughness: 0.8 }),
+            metal: new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.4, metalness: 0.8 }),
+            noobYellow: new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.9, emissive: 0x222200 }),
+            noobWhite: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, emissive: 0x111111 }),
+            noobFace: new THREE.MeshStandardMaterial({ map: createTexture('smiley'), emissive: 0x111111 }),
+            noobShirt: new THREE.MeshStandardMaterial({ map: createTexture('smiley_shirt'), emissive: 0x222200 })
         };
 
-        const colliders = [];
-        const interactables = [];
-        const flickers = [];
+        const colliders = []; const interactables = []; const flickers = [];
 
         function addBox(x, y, z, w, h, d, mat, isCollider=true) {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-            mesh.position.set(x, y, z);
-            mesh.castShadow = true; mesh.receiveShadow = true;
-            scene.add(mesh);
-            if(isCollider) {
-                mesh.geometry.computeBoundingBox();
-                colliders.push(mesh);
-            }
+            mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh);
+            if(isCollider) { mesh.geometry.computeBoundingBox(); colliders.push(mesh); }
             return mesh;
         }
 
+        // ==========================================
+        // LEVEL DESIGN & MODULES
+        // ==========================================
         function wall(x, y, z, w, h, d) { addBox(x, y, z, w, h, d, mats.wall); }
-        function floorCeil(x, z, w, d) {
-            addBox(x, 0, z, w, 0.5, d, mats.floor); 
-            addBox(x, 3.5, z, w, 0.5, d, mats.floor);
-        }
+        function floorCeil(x, z, w, d) { addBox(x, 0, z, w, 0.5, d, mats.floor); addBox(x, 3.5, z, w, 0.5, d, mats.floor); }
 
-        // Layout creation
-        floorCeil(0, 0, 4, 20);    // Hallway
-        floorCeil(0, 14, 8, 8);    // Foyer (Spawn location at z=14)
-        floorCeil(-6, 0, 8, 8);    // Living
-        floorCeil(6, 0, 8, 8);     // Bedroom
-        floorCeil(0, -14, 10, 8);  // Kitchen
+        // Rooms
+        floorCeil(0, 0, 8, 8);      // Bedroom (Start)
+        floorCeil(0, 10, 4, 12);    // Hallway
+        floorCeil(-7, 10, 10, 10);  // Living Room
+        floorCeil(7, 10, 10, 10);   // Kitchen
+        floorCeil(0, 18, 4, 4);     // Foyer / Front Door
 
-        // Hallway Walls
-        wall(-2, 1.75, -5.5, 0.5, 3.5, 9); wall(-2, 1.75, 5.5, 0.5, 3.5, 9); 
-        wall(2, 1.75, -5.5, 0.5, 3.5, 9);  wall(2, 1.75, 5.5, 0.5, 3.5, 9);  
+        // Walls - Bedroom
+        wall(0, 1.75, -4.25, 8.5, 3.5, 0.5); // N
+        wall(-4.25, 1.75, 0, 0.5, 3.5, 8.5); // W
+        wall(4.25, 1.75, 0, 0.5, 3.5, 8.5);  // E
+        wall(-2.5, 1.75, 4.25, 3.5, 3.5, 0.5); wall(2.5, 1.75, 4.25, 3.5, 3.5, 0.5); // S (Door Gap)
+
+        // Walls - Hallway
+        wall(-2.25, 1.75, 6, 0.5, 3.5, 3.5); wall(-2.25, 1.75, 14.5, 0.5, 3.5, 5.5); // W (Gap at z=10)
+        wall(2.25, 1.75, 6, 0.5, 3.5, 3.5); wall(2.25, 1.75, 14.5, 0.5, 3.5, 5.5);  // E (Gap at z=10)
+
+        // Walls - Living Room
+        wall(-7, 1.75, 4.75, 10, 3.5, 0.5); // N
+        wall(-7, 1.75, 15.25, 10, 3.5, 0.5); // S
+        wall(-12.25, 1.75, 10, 0.5, 3.5, 10); // W
+
+        // Walls - Kitchen
+        wall(7, 1.75, 4.75, 10, 3.5, 0.5); // N
+        wall(7, 1.75, 15.25, 10, 3.5, 0.5); // S
+        wall(12.25, 1.75, 10, 0.5, 3.5, 10); // E
+
+        // Foyer & Front Door
+        wall(-2.25, 1.75, 18, 0.5, 3.5, 4); wall(2.25, 1.75, 18, 0.5, 3.5, 4);
+        wall(0, 1.75, 20.25, 4.5, 3.5, 0.5); // End wall (Front Door will be here)
+
+        // Basement Area (Stairs & Room)
+        // Hidden physics ramp for smooth walking
+        const stairRamp = addBox(0, -2.25, -12, 4, 0.5, 10, mats.wood, true);
+        stairRamp.rotation.x = Math.PI / 5.5; stairRamp.visible = false; 
         
-        // Foyer Walls
-        wall(-2.5, 1.75, 10, 3, 3.5, 0.5); wall(2.5, 1.75, 10, 3, 3.5, 0.5); 
-        wall(-4, 1.75, 14, 0.5, 3.5, 8); 
-        wall(4, 1.75, 14, 0.5, 3.5, 8);  
-        wall(-2.5, 1.75, 18, 3, 3.5, 0.5); wall(2.5, 1.75, 18, 3, 3.5, 0.5); 
+        wall(-2.25, -1, -12, 0.5, 8, 10); wall(2.25, -1, -12, 0.5, 8, 10); // Stairwell walls
+        wall(0, 1.75, -7.25, 4.5, 3.5, 0.5); // Stairwell block above ground
+        
+        // Visual Steps
+        for(let i=0; i<12; i++) addBox(0, 0.2 - i*0.4, -7.5 - i*0.8, 4, 0.4, 0.8, mats.wood, false);
 
-        // Living Room
-        wall(-6, 1.75, -4, 8, 3.5, 0.5); 
-        wall(-6, 1.75, 4, 8, 3.5, 0.5);  
-        wall(-10, 1.75, 0, 0.5, 3.5, 8); 
-
-        // Bedroom
-        wall(6, 1.75, -4, 8, 3.5, 0.5); 
-        wall(6, 1.75, 4, 8, 3.5, 0.5);  
-        wall(10, 1.75, 0, 0.5, 3.5, 8); 
-
-        // Kitchen
-        wall(-3, 1.75, -10, 4, 3.5, 0.5); wall(3, 1.75, -10, 4, 3.5, 0.5); 
-        wall(-5, 1.75, -14, 0.5, 3.5, 8); 
-        wall(5, 1.75, -14, 0.5, 3.5, 8);  
-        wall(-3, 1.75, -18, 4, 3.5, 0.5); wall(3, 1.75, -18, 4, 3.5, 0.5); 
-
-        // Basement Stairs
-        wall(-2, -1.5, -20.5, 0.5, 7, 5); 
-        wall(2, -1.5, -20.5, 0.5, 7, 5);  
-        const stairs = addBox(0, -2.5, -20.5, 4, 0.5, 7, mats.wood); stairs.rotation.x = 0.6; 
-
-        // Basement
-        addBox(0, -5, -28, 10, 0.5, 10, mats.floor); // Floor
-        addBox(0, -1.5, -28, 10, 0.5, 10, mats.floor); // Ceiling
-        wall(0, -3.25, -33, 10, 3.5, 0.5); 
-        wall(-3, -3.25, -23, 4, 3.5, 0.5); wall(3, -3.25, -23, 4, 3.5, 0.5); 
-        wall(-5, -3.25, -28, 0.5, 3.5, 10); 
-        wall(5, -3.25, -28, 0.5, 3.5, 10);  
+        // Basement Room
+        addBox(0, -5, -23, 12, 0.5, 12, mats.floor); // B Floor
+        addBox(0, -1.5, -23, 12, 0.5, 12, mats.floor); // B Ceil
+        wall(0, -3.25, -29.25, 12.5, 3.5, 0.5); // B North
+        wall(-6.25, -3.25, -23, 0.5, 3.5, 12); // B West
+        wall(6.25, -3.25, -23, 0.5, 3.5, 12); // B East
+        wall(-4, -3.25, -16.75, 4.5, 3.5, 0.5); wall(4, -3.25, -16.75, 4.5, 3.5, 0.5); // B South
+        addBox(-3, -3.25, -23, 1, 3.5, 1, mats.wall); addBox(3, -3.25, -23, 1, 3.5, 1, mats.wall); // Pillars
 
         // Doors
-        function createDoor(pivotX, pivotY, pivotZ, rotY) {
-            const pivot = new THREE.Group();
-            pivot.position.set(pivotX, pivotY, pivotZ);
-            pivot.rotation.y = rotY;
-            scene.add(pivot);
-
+        function createDoor(px, py, pz, rotY) {
+            const pivot = new THREE.Group(); pivot.position.set(px, py, pz); pivot.rotation.y = rotY; scene.add(pivot);
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 0.2), mats.door);
-            mesh.position.set(1, 1.5, 0); 
-            mesh.castShadow = true; mesh.receiveShadow = true;
-            pivot.add(mesh);
+            mesh.position.set(1, 1.5, 0); mesh.castShadow = true; mesh.receiveShadow = true; pivot.add(mesh);
             mesh.geometry.computeBoundingBox(); colliders.push(mesh);
-
             const interactObj = {
                 type: 'door', mesh: mesh, pivot: pivot, open: false, targetRot: rotY, baseRot: rotY,
-                interact: function() {
-                    this.open = !this.open;
-                    this.targetRot = this.baseRot + (this.open ? Math.PI/2 : 0);
-                    if(audio) audio.playInteract('door');
-                },
-                update: function() {
-                    this.pivot.rotation.y += (this.targetRot - this.pivot.rotation.y) * 0.1;
-                    this.mesh.updateMatrixWorld();
-                }
+                interact: function() { this.open = !this.open; this.targetRot = this.baseRot + (this.open ? Math.PI/2 : 0); if(audio) audio.playInteract('door'); },
+                update: function() { this.pivot.rotation.y += (this.targetRot - this.pivot.rotation.y) * 0.1; this.mesh.updateMatrixWorld(); }
             };
             interactables.push(interactObj);
         }
+        createDoor(-1, 0, 4.25, 0); // Bedroom out
+        createDoor(-2.25, 0, 9, Math.PI/2); // Living Room
+        createDoor(2.25, 0, 11, -Math.PI/2); // Kitchen
 
-        createDoor(-1, 0, 10, 0); // Foyer to Hall
-        createDoor(-1, 0, -10, 0); // Kitchen
-        createDoor(-2, 0, 1, Math.PI/2); // Living
-        createDoor(2, 0, -1, -Math.PI/2); // Bedroom
-        createDoor(-1, 0, -18, 0); // Basement
-
-        // Props & Puzzles
-        const wardrobe = addBox(9, 1.5, 0, 2, 3, 2, mats.wood);
-        const fuseBox = addBox(9, 1.5, 1.5, 0.5, 0.5, 0.5, new THREE.MeshStandardMaterial({color: 0x555555}));
+        // Props & Interaction Items
+        // Bedroom Bed
+        addBox(0, 0.5, -2.5, 3, 0.5, 4, mats.wood); addBox(0, 0.9, -2.5, 2.8, 0.3, 3.8, mats.white);
+        // Bedroom Wardrobe & Fuse
+        addBox(-3.5, 1.5, -3.5, 1.5, 3, 1, mats.wood);
+        const fuseBox = addBox(-3.5, 1.5, -2.8, 0.5, 0.5, 0.5, mats.metal);
         interactables.push({
             type: 'fuse', mesh: fuseBox, prompt: "Take Fuse",
+            interact: function() { if(STATE.stage === 0) { STATE.inventory = 'FUSE'; STATE.stage = 1; scene.remove(fuseBox); if(audio) audio.playInteract('item'); } }
+        });
+
+        // Living Room Couch & Fireplace
+        addBox(-9, 0.6, 10, 4, 0.6, 1.5, mats.red); addBox(-9, 1.2, 9.5, 4, 1.2, 0.5, mats.red); // Couch
+        addBox(-12, 1.5, 10, 1, 3, 3, mats.wall); // Fireplace structure
+        const fireLight = new THREE.PointLight(0xff4400, 1, 10); fireLight.position.set(-11.5, 0.5, 10); scene.add(fireLight); flickers.push(fireLight);
+
+        // Kitchen Counter & Key Drawer
+        addBox(10, 1, 14, 4, 1.5, 2, mats.wood);
+        const drawer = addBox(9, 1.2, 13, 1, 0.5, 0.2, mats.wood);
+        interactables.push({
+            type: 'drawer', mesh: drawer, prompt: "Open Drawer",
             interact: function() {
-                if(STATE.stage === 0) {
-                    STATE.inventory = 'FUSE'; STATE.stage = 1;
-                    scene.remove(fuseBox);
-                    if(audio) audio.playInteract('item');
-                }
+                if(STATE.stage === 2) { STATE.inventory = 'KEY'; STATE.stage = 3; if(audio) audio.playInteract('item'); this.prompt = "Empty"; }
+                else if(STATE.stage < 2) { this.prompt = "Locked. Needs Power."; setTimeout(() => { this.prompt = "Open Drawer"; }, 2000); }
             }
         });
 
-        const mainFusebox = addBox(0, -3, -32.5, 1, 1.5, 0.5, new THREE.MeshStandardMaterial({color: 0x222222}));
+        // Basement Fusebox
+        const mainFusebox = addBox(0, -3, -29, 1, 1.5, 0.5, mats.metal);
         interactables.push({
             type: 'fusebox', mesh: mainFusebox, prompt: "Insert Fuse",
-            interact: function() {
-                if(STATE.stage === 1 && STATE.inventory === 'FUSE') {
-                    STATE.inventory = null; STATE.stage = 2;
-                    triggerPowerEvent();
-                }
-            }
+            interact: function() { if(STATE.stage === 1 && STATE.inventory === 'FUSE') { STATE.inventory = null; STATE.stage = 2; triggerPowerEvent(); } }
         });
 
-        const counter = addBox(-3, 1, -17.5, 3, 1, 1, mats.wood);
-        interactables.push({
-            type: 'drawer', mesh: counter, prompt: "Open Drawer",
-            interact: function() {
-                if(STATE.stage === 2) {
-                    STATE.inventory = 'KEY'; STATE.stage = 3;
-                    if(audio) audio.playInteract('item');
-                    this.prompt = "Empty";
-                } else if(STATE.stage < 2) {
-                    this.prompt = "Locked. Needs Power.";
-                    setTimeout(() => { this.prompt = "Open Drawer"; }, 2000);
-                }
-            }
-        });
-
-        const frontDoorMesh = addBox(0, 1.5, 18, 2, 3, 0.5, mats.door);
+        // Front Door (Escape)
+        const frontDoorMesh = addBox(0, 1.5, 20, 2, 3, 0.5, mats.door);
         interactables.push({
             type: 'frontdoor', mesh: frontDoorMesh, prompt: "Unlock Door",
             interact: function() {
                 if(STATE.stage === 3 && STATE.inventory === 'KEY') winGame();
-                else {
-                    this.prompt = "Locked.";
-                    setTimeout(() => { this.prompt = "Unlock Door"; }, 2000);
-                }
+                else { this.prompt = "Locked."; setTimeout(() => { this.prompt = "Unlock Door"; }, 2000); }
             }
         });
 
-        addBox(-9.5, 1, 0, 1, 2, 3, mats.wall); // Fireplace
-        const fireLight = new THREE.PointLight(0xff4400, 1, 10);
-        fireLight.position.set(-9, 0.5, 0); scene.add(fireLight); flickers.push(fireLight);
-
         const houseLights = [];
-        const lightPositions = [ {x:0, y:3, z:14}, {x:0, y:3, z:0}, {x:-6, y:3, z:0}, {x:6, y:3, z:0}, {x:0, y:3, z:-14} ];
-        lightPositions.forEach(p => {
-            const l = new THREE.PointLight(0xffeedd, 0, 8);
-            l.position.set(p.x, p.y, p.z); scene.add(l); houseLights.push(l);
-        });
+        const lightPositions = [ {x:0, y:3, z:0}, {x:0, y:3, z:10}, {x:-7, y:3, z:10}, {x:7, y:3, z:10} ];
+        lightPositions.forEach(p => { const l = new THREE.PointLight(0xffeedd, 0, 8); l.position.set(p.x, p.y, p.z); scene.add(l); houseLights.push(l); });
 
         function triggerPowerEvent() {
             if(audio) audio.playInteract('door');
@@ -448,93 +345,105 @@
                 let count = 0;
                 const intv = setInterval(() => {
                     houseLights.forEach(l => l.intensity = Math.random());
-                    count++;
-                    if(count > 15) {
-                        clearInterval(intv);
-                        houseLights.forEach(l => l.intensity = 0);
-                        entity.state = 'chase';
-                    }
+                    if(count++ > 15) { clearInterval(intv); houseLights.forEach(l => l.intensity = 0); entity.state = 'chase'; }
                 }, 100);
             }, 1000);
         }
 
-        const partGeo = new THREE.BufferGeometry();
-        const partPos = new Float32Array(1500);
-        for(let i=0; i<1500; i++) partPos[i] = (Math.random() - 0.5) * 20;
-        partGeo.setAttribute('position', new THREE.BufferAttribute(partPos, 3));
-        const particles = new THREE.Points(partGeo, new THREE.PointsMaterial({color: 0x888888, size: 0.05, transparent: true, opacity: 0.5}));
+        const particles = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(1500).map(()=> (Math.random()-0.5)*20), 3)), new THREE.PointsMaterial({color: 0x888888, size: 0.05, transparent: true, opacity: 0.5}));
         scene.add(particles);
 
         // ==========================================
-        // THE ENTITY
+        // THE ENTITY (Roblox Avatar Style)
         // ==========================================
         const entityGroup = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2), mats.entity); body.position.y = 1;
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.25), mats.entity); head.position.y = 2.2;
-        const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), mats.entity); armL.position.set(-0.4, 1.5, 0);
-        const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), mats.entity); armR.position.set(0.4, 1.5, 0);
-        entityGroup.add(body); entityGroup.add(head); entityGroup.add(armL); entityGroup.add(armR);
         
-        // Spawn Entity safely on the main floor (Hallway north end) so it doesn't float from basement
-        entityGroup.position.set(0, 0, -8); 
+        // Torso
+        const eTorso = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.1, 0.45), mats.noobShirt); eTorso.position.y = 1.6;
+        // Head
+        const eHead = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), mats.noobFace); eHead.position.y = 2.5;
+        // Hat
+        const eHat = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 0.4), mats.noobYellow); eHat.position.y = 3.0;
+        // Limbs (Yellow arms, white hands, yellow legs, white shoes)
+        const armGeo = new THREE.BoxGeometry(0.35, 1.1, 0.35);
+        const eArmL = new THREE.Mesh(armGeo, mats.noobYellow); eArmL.position.set(-0.65, 1.6, 0);
+        const eArmR = new THREE.Mesh(armGeo, mats.noobYellow); eArmR.position.set(0.65, 1.6, 0);
+        const legGeo = new THREE.BoxGeometry(0.4, 1.1, 0.4);
+        const eLegL = new THREE.Mesh(legGeo, mats.noobYellow); eLegL.position.set(-0.22, 0.55, 0);
+        const eLegR = new THREE.Mesh(legGeo, mats.noobYellow); eLegR.position.set(0.22, 0.55, 0);
+
+        entityGroup.add(eTorso); entityGroup.add(eHead); entityGroup.add(eHat); 
+        entityGroup.add(eArmL); entityGroup.add(eArmR); entityGroup.add(eLegL); entityGroup.add(eLegR);
+        
+        entityGroup.position.set(0, 0, 16); // Spawn Hallway end
         scene.add(entityGroup);
 
         const entity = {
             mesh: entityGroup, state: 'patrol', speed: CONFIG.entitySpeedPatrol,
             target: new THREE.Vector3(), wpIndex: 0, animTime: 0,
-            waypoints: [ new THREE.Vector3(0,0,0), new THREE.Vector3(-6,0,0), new THREE.Vector3(0,0,0), new THREE.Vector3(6,0,0), new THREE.Vector3(0,0,-8) ],
+            waypoints: [ new THREE.Vector3(0,0,16), new THREE.Vector3(0,0,6), new THREE.Vector3(-7,0,10), new THREE.Vector3(7,0,10) ],
+            
             update: function(dt) {
-                let distToPlayer = this.mesh.position.distanceTo(yawObj.position);
-                const dirToPlayer = new THREE.Vector3().subVectors(yawObj.position, this.mesh.position).normalize();
-                const ray = new THREE.Raycaster(new THREE.Vector3(this.mesh.position.x, 2, this.mesh.position.z), dirToPlayer);
-                const hits = ray.intersectObjects([...colliders, yawObj], true);
-                
-                let canSeePlayer = false;
-                if(hits.length > 0 && hits[0].distance >= distToPlayer - 1) canSeePlayer = true;
+                // Ignore height difference for proximity checks
+                const dist2D = Math.hypot(yawObj.position.x - this.mesh.position.x, yawObj.position.z - this.mesh.position.z);
+                const heightDiff = Math.abs(yawObj.position.y - this.mesh.position.y);
 
-                if(canSeePlayer && distToPlayer < 15) this.state = 'chase';
+                const dirToPlayer = new THREE.Vector3().subVectors(yawObj.position, this.mesh.position).normalize();
+                const ray = new THREE.Raycaster(new THREE.Vector3(this.mesh.position.x, 1.5, this.mesh.position.z), dirToPlayer);
+                const hits = ray.intersectObjects([...colliders, yawObj], true);
+                let canSeePlayer = (hits.length > 0 && hits[0].distance >= dist2D - 1);
+
+                if(canSeePlayer && dist2D < 15) this.state = 'chase';
                 else if(this.state === 'chase') { this.state = 'investigate'; this.target.copy(yawObj.position); }
 
                 if(this.state === 'patrol') {
                     this.speed = CONFIG.entitySpeedPatrol; this.target.copy(this.waypoints[this.wpIndex]);
-                    if(this.mesh.position.distanceTo(this.target) < 1) this.wpIndex = (this.wpIndex + 1) % this.waypoints.length;
+                    if(Math.hypot(this.target.x - this.mesh.position.x, this.target.z - this.mesh.position.z) < 1) this.wpIndex = (this.wpIndex + 1) % this.waypoints.length;
                 } else if(this.state === 'chase') {
-                    this.speed = CONFIG.entitySpeedChase; this.target.copy(yawObj.position); this.target.y = 0;
+                    this.speed = CONFIG.entitySpeedChase; this.target.copy(yawObj.position); this.target.y = this.mesh.position.y;
                 } else if(this.state === 'investigate') {
                     this.speed = CONFIG.entitySpeedPatrol;
-                    if(this.mesh.position.distanceTo(this.target) < 1) this.state = 'patrol';
+                    if(Math.hypot(this.target.x - this.mesh.position.x, this.target.z - this.mesh.position.z) < 1) this.state = 'patrol';
                 }
 
-                if(audio) audio.updateHeartbeat(dt, Math.max(0, 1 - (distToPlayer / 15)));
-                const vigStr = Math.max(0, 0.8 - (distToPlayer / 15));
+                if(audio) audio.updateHeartbeat(dt, Math.max(0, 1 - (dist2D / 15)));
+                const vigStr = Math.max(0, 0.8 - (dist2D / 15));
                 document.getElementById('vignette').style.background = `radial-gradient(circle, rgba(0,0,0,${vigStr*0.5}) 30%, rgba(0,0,0,${vigStr+0.2}) 80%, rgba(0,0,0,1) 100%)`;
 
                 const moveDir = new THREE.Vector3().subVectors(this.target, this.mesh.position); moveDir.y = 0;
                 if(moveDir.length() > 0.1) {
                     moveDir.normalize();
-                    this.mesh.position.addScaledVector(moveDir, this.speed * dt);
+                    // Slide Collision logic
+                    let nx = this.mesh.position.clone(); nx.x += moveDir.x * this.speed * dt;
+                    let nz = this.mesh.position.clone(); nz.z += moveDir.z * this.speed * dt;
+                    if(!checkCollision(nx, 0.8)) this.mesh.position.x = nx.x;
+                    if(!checkCollision(nz, 0.8)) this.mesh.position.z = nz.z;
+                    
                     this.mesh.rotation.y = Math.atan2(moveDir.x, moveDir.z);
                 }
 
-                this.animTime += dt * this.speed * 2;
-                armL.rotation.x = Math.sin(this.animTime) * 0.5; armR.rotation.x = -Math.sin(this.animTime) * 0.5;
+                // Animation
+                this.animTime += dt * this.speed * 3;
+                eArmL.rotation.x = Math.sin(this.animTime) * 0.8; eArmR.rotation.x = -Math.sin(this.animTime) * 0.8;
+                eLegL.rotation.x = -Math.sin(this.animTime) * 0.8; eLegR.rotation.x = Math.sin(this.animTime) * 0.8;
 
-                if(distToPlayer < 1.5 && STATE.lives > 0) catchPlayer();
+                // Entity opens doors
+                interactables.forEach(obj => {
+                    if (obj.type === 'door' && !obj.open && this.mesh.position.distanceTo(obj.pivot.position) < 2.5) obj.interact();
+                });
+
+                // Catch Condition
+                if(dist2D < 1.2 && heightDiff < 3 && STATE.lives > 0) catchPlayer();
             }
         };
 
         function catchPlayer() {
-            if(audio) audio.playScare();
-            STATE.lives--;
+            if(audio) audio.playScare(); STATE.lives--;
             if(STATE.lives <= 0) {
-                document.getElementById('game-over').style.display = 'flex';
-                STATE.isRunning = false; document.exitPointerLock();
+                document.getElementById('game-over').style.display = 'flex'; STATE.isRunning = false; document.exitPointerLock();
             } else {
                 document.getElementById('vignette').style.background = 'black';
-                setTimeout(() => {
-                    yawObj.position.set(0, CONFIG.playerHeight, 14); // Respawn Foyer
-                    entity.mesh.position.set(0, 0, -8); entity.state = 'patrol'; // Reset Hallway
-                }, 500);
+                setTimeout(() => { yawObj.position.set(0, CONFIG.playerHeight, 0); entity.mesh.position.set(0, 0, 16); entity.state = 'patrol'; }, 500);
             }
         }
 
@@ -543,125 +452,77 @@
         // ==========================================
         STATE.isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
         if(STATE.isMobile) {
-            document.getElementById('touch-zone-left').style.display = 'block';
-            document.getElementById('touch-zone-right').style.display = 'block';
-            document.getElementById('btn-sprint').style.display = 'flex';
-            document.getElementById('btn-crouch').style.display = 'flex';
+            document.getElementById('touch-zone-left').style.display = 'block'; document.getElementById('touch-zone-right').style.display = 'block';
+            document.getElementById('btn-sprint').style.display = 'flex'; document.getElementById('btn-crouch').style.display = 'flex';
         }
 
         document.addEventListener('keydown', (e) => {
-            switch(e.code) {
-                case 'KeyW': STATE.input.forward = true; break; case 'KeyS': STATE.input.backward = true; break;
-                case 'KeyA': STATE.input.left = true; break; case 'KeyD': STATE.input.right = true; break;
-                case 'ShiftLeft': STATE.player.isSprinting = true; break; case 'KeyC': STATE.player.isCrouching = true; break;
-                case 'KeyE': interactCenter(); break;
-            }
+            switch(e.code) { case 'KeyW': STATE.input.forward = true; break; case 'KeyS': STATE.input.backward = true; break; case 'KeyA': STATE.input.left = true; break; case 'KeyD': STATE.input.right = true; break; case 'ShiftLeft': STATE.player.isSprinting = true; break; case 'KeyC': STATE.player.isCrouching = true; break; case 'KeyE': interactCenter(); break; }
         });
         document.addEventListener('keyup', (e) => {
-            switch(e.code) {
-                case 'KeyW': STATE.input.forward = false; break; case 'KeyS': STATE.input.backward = false; break;
-                case 'KeyA': STATE.input.left = false; break; case 'KeyD': STATE.input.right = false; break;
-                case 'ShiftLeft': STATE.player.isSprinting = false; break; case 'KeyC': STATE.player.isCrouching = false; break;
-            }
+            switch(e.code) { case 'KeyW': STATE.input.forward = false; break; case 'KeyS': STATE.input.backward = false; break; case 'KeyA': STATE.input.left = false; break; case 'KeyD': STATE.input.right = false; break; case 'ShiftLeft': STATE.player.isSprinting = false; break; case 'KeyC': STATE.player.isCrouching = false; break; }
         });
 
         document.addEventListener('mousemove', (e) => {
             if(!STATE.isMobile && document.pointerLockElement === document.body) {
-                STATE.input.yaw -= e.movementX * CONFIG.lookSens;
-                STATE.input.pitch -= e.movementY * CONFIG.lookSens;
+                STATE.input.yaw -= e.movementX * CONFIG.lookSens; STATE.input.pitch -= e.movementY * CONFIG.lookSens;
                 STATE.input.pitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, STATE.input.pitch));
                 yawObj.rotation.y = STATE.input.yaw; pitchObj.rotation.x = STATE.input.pitch;
             }
         });
-        document.getElementById('glcanvas').addEventListener('click', () => {
-            if(!STATE.isMobile && STATE.isRunning) document.body.requestPointerLock();
-        });
+        document.getElementById('glcanvas').addEventListener('click', () => { if(!STATE.isMobile && STATE.isRunning) document.body.requestPointerLock(); });
 
         const tLeft = document.getElementById('touch-zone-left'), tRight = document.getElementById('touch-zone-right');
-        tLeft.addEventListener('touchstart', (e) => {
-            e.preventDefault(); const t = e.changedTouches[0];
-            STATE.touch.joystickActive = true; STATE.touch.joyOrigin = STATE.touch.joyPos = {x: t.clientX, y: t.clientY};
-        }, {passive: false});
-        tLeft.addEventListener('touchmove', (e) => {
-            e.preventDefault(); if(!STATE.touch.joystickActive) return;
-            const t = Array.from(e.touches).find(t => t.clientX < window.innerWidth/2);
-            if(t) STATE.touch.joyPos = {x: t.clientX, y: t.clientY};
-        }, {passive: false});
-        tLeft.addEventListener('touchend', (e) => {
-            e.preventDefault(); STATE.touch.joystickActive = false;
-            STATE.input.forward = STATE.input.backward = STATE.input.left = STATE.input.right = false;
-        }, {passive: false});
+        tLeft.addEventListener('touchstart', (e) => { e.preventDefault(); const t = e.changedTouches[0]; STATE.touch.joystickActive = true; STATE.touch.joyOrigin = STATE.touch.joyPos = {x: t.clientX, y: t.clientY}; }, {passive: false});
+        tLeft.addEventListener('touchmove', (e) => { e.preventDefault(); if(!STATE.touch.joystickActive) return; const t = Array.from(e.touches).find(t => t.clientX < window.innerWidth/2); if(t) STATE.touch.joyPos = {x: t.clientX, y: t.clientY}; }, {passive: false});
+        tLeft.addEventListener('touchend', (e) => { e.preventDefault(); STATE.touch.joystickActive = false; STATE.input.forward = STATE.input.backward = STATE.input.left = STATE.input.right = false; }, {passive: false});
 
         let lastTouchX = 0, lastTouchY = 0;
         tRight.addEventListener('touchstart', (e) => {
             e.preventDefault(); const t = Array.from(e.changedTouches).find(t => t.clientX >= window.innerWidth/2);
-            if(t) {
-                lastTouchX = t.clientX; lastTouchY = t.clientY;
-                const now = Date.now(); if(now - STATE.touch.lastTapTime < 300) interactCenter();
-                STATE.touch.lastTapTime = now;
-            }
+            if(t) { lastTouchX = t.clientX; lastTouchY = t.clientY; const now = Date.now(); if(now - STATE.touch.lastTapTime < 300) interactCenter(); STATE.touch.lastTapTime = now; }
         }, {passive: false});
         tRight.addEventListener('touchmove', (e) => {
             e.preventDefault(); const t = Array.from(e.touches).find(t => t.clientX >= window.innerWidth/2);
             if(t) {
-                STATE.input.yaw -= (t.clientX - lastTouchX) * CONFIG.touchLookSens;
-                STATE.input.pitch -= (t.clientY - lastTouchY) * CONFIG.touchLookSens;
+                STATE.input.yaw -= (t.clientX - lastTouchX) * CONFIG.touchLookSens; STATE.input.pitch -= (t.clientY - lastTouchY) * CONFIG.touchLookSens;
                 STATE.input.pitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, STATE.input.pitch));
-                yawObj.rotation.y = STATE.input.yaw; pitchObj.rotation.x = STATE.input.pitch;
-                lastTouchX = t.clientX; lastTouchY = t.clientY;
+                yawObj.rotation.y = STATE.input.yaw; pitchObj.rotation.x = STATE.input.pitch; lastTouchX = t.clientX; lastTouchY = t.clientY;
             }
         }, {passive: false});
 
-        document.getElementById('btn-sprint').addEventListener('touchstart', (e) => { e.preventDefault(); STATE.player.isSprinting = true; });
-        document.getElementById('btn-sprint').addEventListener('touchend', (e) => { e.preventDefault(); STATE.player.isSprinting = false; });
-        document.getElementById('btn-crouch').addEventListener('touchstart', (e) => { e.preventDefault(); STATE.player.isCrouching = true; });
-        document.getElementById('btn-crouch').addEventListener('touchend', (e) => { e.preventDefault(); STATE.player.isCrouching = false; });
+        // STOP PROPAGATION on mobile buttons to fix camera dragging
+        const btnSprint = document.getElementById('btn-sprint'), btnCrouch = document.getElementById('btn-crouch');
+        btnSprint.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); STATE.player.isSprinting = true; });
+        btnSprint.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); STATE.player.isSprinting = false; });
+        btnCrouch.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); STATE.player.isCrouching = true; });
+        btnCrouch.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); STATE.player.isCrouching = false; });
 
-        const uiCanvas = document.getElementById('ui-canvas');
-        const uiCtx = uiCanvas.getContext('2d');
-        function resize() {
-            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            uiCanvas.width = window.innerWidth; uiCanvas.height = window.innerHeight;
-        }
+        const uiCanvas = document.getElementById('ui-canvas'); const uiCtx = uiCanvas.getContext('2d');
+        function resize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); uiCanvas.width = window.innerWidth; uiCanvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
 
         function drawHUD() {
             uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
-            uiCtx.fillStyle = 'red'; uiCtx.font = '24px Arial';
-            for(let i=0; i<STATE.lives; i++) uiCtx.fillText('♥', 20 + i*30, 40);
-
-            uiCtx.strokeStyle = 'rgba(255,255,255,0.5)'; uiCtx.lineWidth = 2;
-            uiCtx.strokeRect(window.innerWidth/2 - 25, window.innerHeight - 60, 50, 50);
-            if(STATE.inventory) {
-                uiCtx.fillStyle = 'white'; uiCtx.font = '12px Courier'; uiCtx.textAlign = 'center';
-                uiCtx.fillText(STATE.inventory, window.innerWidth/2, window.innerHeight - 30);
-            }
-
-            if(STATE.interactPrompt) {
-                uiCtx.fillStyle = 'white'; uiCtx.font = '16px Courier'; uiCtx.textAlign = 'center';
-                uiCtx.fillText((STATE.isMobile ? "[Tap x2] " : "[E] ") + STATE.interactPrompt, window.innerWidth/2, window.innerHeight/2 + 40);
-            }
-
+            uiCtx.fillStyle = 'red'; uiCtx.font = '24px Arial'; for(let i=0; i<STATE.lives; i++) uiCtx.fillText('♥', 20 + i*30, 40);
+            uiCtx.strokeStyle = 'rgba(255,255,255,0.5)'; uiCtx.lineWidth = 2; uiCtx.strokeRect(window.innerWidth/2 - 25, window.innerHeight - 60, 50, 50);
+            if(STATE.inventory) { uiCtx.fillStyle = '#ffcc00'; uiCtx.font = 'bold 12px Courier'; uiCtx.textAlign = 'center'; uiCtx.fillText(STATE.inventory, window.innerWidth/2, window.innerHeight - 30); }
+            if(STATE.interactPrompt) { uiCtx.fillStyle = 'white'; uiCtx.font = '16px Courier'; uiCtx.textAlign = 'center'; uiCtx.fillText((STATE.isMobile ? "[Tap x2] " : "[E] ") + STATE.interactPrompt, window.innerWidth/2, window.innerHeight/2 + 40); }
             if(STATE.isMobile && STATE.touch.joystickActive) {
-                uiCtx.strokeStyle = 'rgba(255,255,255,0.3)'; uiCtx.beginPath();
-                uiCtx.arc(STATE.touch.joyOrigin.x, STATE.touch.joyOrigin.y, 50, 0, Math.PI*2); uiCtx.stroke();
-                uiCtx.fillStyle = 'rgba(255,255,255,0.5)'; uiCtx.beginPath();
-                uiCtx.arc(STATE.touch.joyPos.x, STATE.touch.joyPos.y, 20, 0, Math.PI*2); uiCtx.fill();
+                uiCtx.strokeStyle = 'rgba(255,255,255,0.3)'; uiCtx.beginPath(); uiCtx.arc(STATE.touch.joyOrigin.x, STATE.touch.joyOrigin.y, 50, 0, Math.PI*2); uiCtx.stroke();
+                uiCtx.fillStyle = 'rgba(255,255,255,0.5)'; uiCtx.beginPath(); uiCtx.arc(STATE.touch.joyPos.x, STATE.touch.joyPos.y, 20, 0, Math.PI*2); uiCtx.fill();
             }
         }
 
         // ==========================================
-        // GAME LOOP
+        // GAME LOOP & COLLISIONS
         // ==========================================
         const raycaster = new THREE.Raycaster();
         
-        function checkCollision(pos) {
-            // FIX: Check collisions specifically against the midsection of the player (y+0.2 to y+1.0)
-            // This safely avoids all floor elements (y <= 0.25) and ceilings (y >= 3.25)
+        function checkCollision(pos, width=0.6) {
             const pBox = new THREE.Box3(
-                new THREE.Vector3(pos.x - 0.3, pos.y + 0.2, pos.z - 0.3),
-                new THREE.Vector3(pos.x + 0.3, pos.y + 1.0, pos.z + 0.3)
+                new THREE.Vector3(pos.x - width/2, pos.y + 0.2, pos.z - width/2),
+                new THREE.Vector3(pos.x + width/2, pos.y + 1.0, pos.z + width/2)
             );
             for(let c of colliders) {
                 if(!c.geometry.boundingBox) c.geometry.computeBoundingBox();
@@ -686,8 +547,7 @@
             if(STATE.isMobile && STATE.touch.joystickActive) {
                 const dx = STATE.touch.joyPos.x - STATE.touch.joyOrigin.x, dy = STATE.touch.joyPos.y - STATE.touch.joyOrigin.y;
                 if(Math.sqrt(dx*dx + dy*dy) > 10) {
-                    STATE.input.forward = dy < -10; STATE.input.backward = dy > 10;
-                    STATE.input.left = dx < -10; STATE.input.right = dx > 10;
+                    STATE.input.forward = dy < -10; STATE.input.backward = dy > 10; STATE.input.left = dx < -10; STATE.input.right = dx > 10;
                 }
             }
 
@@ -701,11 +561,8 @@
                 const rgt = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), yawObj.rotation.y);
                 const moveVec = new THREE.Vector3().addScaledVector(fwd, -STATE.player.direction.z).addScaledVector(rgt, STATE.player.direction.x).normalize().multiplyScalar(speed * dt);
 
-                let nextPos = yawObj.position.clone(); nextPos.x += moveVec.x;
-                if(!checkCollision(nextPos)) yawObj.position.x = nextPos.x;
-                
-                nextPos = yawObj.position.clone(); nextPos.z += moveVec.z;
-                if(!checkCollision(nextPos)) yawObj.position.z = nextPos.z;
+                let nx = yawObj.position.clone(); nx.x += moveVec.x; if(!checkCollision(nx)) yawObj.position.x = nx.x;
+                let nz = yawObj.position.clone(); nz.z += moveVec.z; if(!checkCollision(nz)) yawObj.position.z = nz.z;
 
                 footstepTimer += dt * speed;
                 if(footstepTimer > 1.5) {
@@ -721,7 +578,7 @@
             const downRay = new THREE.Raycaster(yawObj.position.clone().add(new THREE.Vector3(0,1,0)), new THREE.Vector3(0,-1,0));
             const floorHits = downRay.intersectObjects(colliders);
             let targetY = 0; if(floorHits.length > 0 && floorHits[0].distance < 10) targetY = floorHits[0].point.y;
-            yawObj.position.y += (targetY + (STATE.player.isCrouching ? CONFIG.crouchHeight : CONFIG.playerHeight) - yawObj.position.y) * 0.1;
+            yawObj.position.y += (targetY + (STATE.player.isCrouching ? CONFIG.crouchHeight : CONFIG.playerHeight) - yawObj.position.y) * 0.2;
 
             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
             const hits = raycaster.intersectObjects(interactables.map(i => i.mesh));
@@ -740,14 +597,14 @@
         }
 
         // ==========================================
-        // FLOW CONTROL
+        // INITIALIZATION
         // ==========================================
         document.getElementById('btn-start').addEventListener('click', () => {
             document.getElementById('start-screen').style.display = 'none';
             if(!audio) { audio = new AudioEngine(); audio.startAmbient(); }
             if(audio.ctx.state === 'suspended') audio.ctx.resume();
             
-            yawObj.position.set(0, CONFIG.playerHeight, 14); 
+            yawObj.position.set(0, CONFIG.playerHeight, 0); 
             STATE.isRunning = true;
             if(!STATE.isMobile) document.body.requestPointerLock();
         });
